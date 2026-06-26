@@ -4,3 +4,6 @@ server.out.log
 server.err.log
 .env
 .DS_Store
+bin/
+gh_*.zip
+LICENSE
