@@ -178,6 +178,13 @@ textarea {
   line-height: 1.55;
 }
 
+.large-feedback {
+  min-height: 150px;
+  padding: 14px 16px;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -619,6 +626,60 @@ textarea:focus {
   gap: 14px;
 }
 
+.overall-feedback-flow {
+  display: grid;
+  gap: 0;
+}
+
+.overall-prompt {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 24px;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.overall-prompt:first-child {
+  padding-top: 6px;
+}
+
+.overall-prompt:last-child {
+  padding-bottom: 4px;
+  border-bottom: 0;
+}
+
+.overall-copy {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.overall-copy span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 28px;
+  border-radius: 999px;
+  background: #d2f7ef;
+  color: var(--teal-dark);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.overall-copy label {
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 800;
+}
+
+.overall-copy p {
+  max-width: 30ch;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
 .stack {
   display: grid;
   gap: 12px;
@@ -923,8 +984,17 @@ th {
   }
 
   .score-question,
-  .feedback-grid {
+  .feedback-grid,
+  .overall-prompt {
     grid-template-columns: 1fr;
+  }
+
+  .overall-prompt {
+    gap: 12px;
+  }
+
+  .overall-copy p {
+    max-width: none;
   }
 
   .workspace-head,

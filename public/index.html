@@ -43,21 +43,33 @@
       <section class="section">
         <div class="section-header">
           <h2>整体反馈</h2>
-          <p>尽量写具体场景，便于反推出功能设计是否贴合业务、规则是否讲得清楚。</p>
+          <p>这里会直接影响后续复盘，请尽量写 2-4 句具体场景。</p>
         </div>
         <div class="section-body">
-          <div class="grid-3">
-            <div class="field">
-              <label for="favoritePoints">你熟悉的功能里，最能体现设计靠谱的点是什么？</label>
-              <textarea id="favoritePoints" placeholder="例如：私聊分组能按「客户意向 + 是否需人工介入」筛出要跟的会话，说明它理解运营分层和跟进优先级。"></textarea>
+          <div class="overall-feedback-flow">
+            <div class="overall-prompt">
+              <div class="overall-copy">
+                <span>01</span>
+                <label for="favoritePoints">最能体现设计靠谱的点</label>
+                <p>写出你愿意保留的功能点，以及它解决了哪个运营判断或协作问题。</p>
+              </div>
+              <textarea id="favoritePoints" class="large-feedback" placeholder="例如：私聊分组能按「客户意向 + 是否需人工介入」筛出要跟的会话。这个设计对运营有价值，因为它不是单纯做标签筛选，而是把客户分层、人工介入时机和跟进优先级放在一起考虑了。"></textarea>
             </div>
-            <div class="field">
-              <label for="dislikedPoints">你熟悉的功能里，最暴露设计不足的点是什么？</label>
-              <textarea id="dislikedPoints" placeholder="例如：自动分配只给出结果，不说明为什么分给这个人，我很难判断规则是否合理、是否需要人工介入。"></textarea>
+            <div class="overall-prompt">
+              <div class="overall-copy">
+                <span>02</span>
+                <label for="dislikedPoints">最暴露设计不足的点</label>
+                <p>写出你不放心、难判断或容易理解偏差的地方，重点说清楚产品设计哪里没托住业务。</p>
+              </div>
+              <textarea id="dislikedPoints" class="large-feedback" placeholder="例如：自动分配只给出分配结果，但不解释为什么分给这个人。运营无法判断规则是否合理，也不知道什么情况下需要人工介入，这会让我觉得规则边界和异常处理设计得不够清楚。"></textarea>
             </div>
-            <div class="field">
-              <label for="nextImprove">如果只能先改一件事，你希望改什么？</label>
-              <textarea id="nextImprove" placeholder="例如：先把动态策略组的阶段切换条件、触发时机和兜底动作放在同一处，让运营能判断规则边界。"></textarea>
+            <div class="overall-prompt">
+              <div class="overall-copy">
+                <span>03</span>
+                <label for="nextImprove">如果只能先改一件事</label>
+                <p>写一个你认为最值得优先改的点，并说明为什么它会影响运营使用或管理判断。</p>
+              </div>
+              <textarea id="nextImprove" class="large-feedback" placeholder="例如：先把动态策略组的阶段切换条件、触发时机、兜底动作放在同一处，并用运营能看懂的话解释。这样运营才能判断策略是否符合投放目标，也能发现规则边界是否遗漏。"></textarea>
             </div>
           </div>
         </div>

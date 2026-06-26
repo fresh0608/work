@@ -181,6 +181,9 @@ assert.equal(stylesCss.includes('.step-shell'), true);
 assert.equal(stylesCss.includes('.choice-cloud'), true);
 assert.equal(indexHtml.includes('href="/admin"'), false);
 assert.equal(indexHtml.includes('查看后台'), false);
+assert.equal(indexHtml.includes('overall-feedback-flow'), true);
+assert.equal(indexHtml.includes('class="large-feedback"'), true);
+assert.equal(indexHtml.includes('grid-3">\n            <div class="field">\n              <label for="favoritePoints"'), false);
 assert.equal(adminHtml.includes('snapshotTable'), true);
 
 const tempDir = await mkdtemp(join(tmpdir(), 'operator-survey-'));
