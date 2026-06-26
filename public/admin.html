@@ -21,74 +21,91 @@
       </div>
     </header>
 
-    <section class="metric-grid" id="metricGrid"></section>
-
-    <section class="section">
+    <section class="section login-panel" id="adminLogin">
       <div class="section-header">
-        <h2>提交与来源统计</h2>
-        <p>用于排查重复提交和样本来源，不展示在问卷页。</p>
+        <h2>进入后台</h2>
+        <p>后台包含填写快照、IP 和设备信息，需要密码查看。</p>
       </div>
-      <div class="section-body">
-        <div id="sourceStats" class="grid-3"></div>
-      </div>
+      <form class="section-body login-form" id="adminLoginForm">
+        <div class="field">
+          <label for="adminPassword">后台密码</label>
+          <input id="adminPassword" name="password" type="password" autocomplete="current-password" placeholder="请输入后台密码" required>
+        </div>
+        <button class="button primary" id="loginButton" type="submit">进入看板</button>
+        <span class="status" id="loginStatus">未登录</span>
+      </form>
     </section>
 
-    <section class="section">
-      <div class="section-header">
-        <h2>功能设计质量</h2>
-        <p id="adminStatus">正在加载...</p>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>功能</th>
-              <th>综合分</th>
-              <th>样本</th>
-              <th>业务理解</th>
-              <th>完整性</th>
-              <th>严谨性</th>
-              <th>体验</th>
-              <th>AI</th>
-              <th>主要问题</th>
-            </tr>
-          </thead>
-          <tbody id="healthTable"></tbody>
-        </table>
-      </div>
-    </section>
+    <div id="adminDashboard" hidden>
+      <section class="metric-grid" id="metricGrid"></section>
 
-    <section class="section">
-      <div class="section-header">
-        <h2>功能明细</h2>
-        <select id="featureSelect" aria-label="选择功能" style="max-width: 420px;"></select>
-      </div>
-      <div class="section-body">
-        <div id="featureDetail" class="detail-layout"></div>
-      </div>
-    </section>
+      <section class="section">
+        <div class="section-header">
+          <h2>提交与来源统计</h2>
+          <p>用于排查重复提交和样本来源，不展示在问卷页。</p>
+        </div>
+        <div class="section-body">
+          <div id="sourceStats" class="grid-3"></div>
+        </div>
+      </section>
 
-    <section class="section">
-      <div class="section-header">
-        <h2>提交记录与快照</h2>
-        <p>保留每个人提交时的原始答案、IP、设备和浏览器信息。</p>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>提交时间</th>
-              <th>角色</th>
-              <th>IP</th>
-              <th>设备</th>
-              <th>评价功能</th>
-              <th>填写快照</th>
-            </tr>
-          </thead>
-          <tbody id="snapshotTable"></tbody>
-        </table>
-      </div>
-    </section>
+      <section class="section">
+        <div class="section-header">
+          <h2>功能设计质量</h2>
+          <p id="adminStatus">正在加载...</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>功能</th>
+                <th>综合分</th>
+                <th>样本</th>
+                <th>业务理解</th>
+                <th>完整性</th>
+                <th>严谨性</th>
+                <th>体验</th>
+                <th>AI</th>
+                <th>主要问题</th>
+              </tr>
+            </thead>
+            <tbody id="healthTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <h2>功能明细</h2>
+          <select id="featureSelect" aria-label="选择功能" style="max-width: 420px;"></select>
+        </div>
+        <div class="section-body">
+          <div id="featureDetail" class="detail-layout"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <h2>提交记录与快照</h2>
+          <p>保留每个人提交时的原始答案、IP、设备和浏览器信息。</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>提交时间</th>
+                <th>角色</th>
+                <th>IP</th>
+                <th>设备</th>
+                <th>评价功能</th>
+                <th>填写快照</th>
+              </tr>
+            </thead>
+            <tbody id="snapshotTable"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </main>
 
   <script type="module" src="/admin.js"></script>

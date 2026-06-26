@@ -33,6 +33,7 @@ const sampleResponse = {
         [momentsQuestionIds[2]]: 3,
       },
       mainProblem: FEATURES[0].problemOptions[0],
+      problemDetail: '互动处理动作和后续跟进关系需要更明确。',
       liked: {
         points: [FEATURES[0].likeOptions[0], '我自己写的喜欢点'],
         detail: '客户点赞评论能集中看到。',
@@ -51,6 +52,7 @@ const sampleResponse = {
         [strategyQuestionIds[2]]: 2,
       },
       mainProblem: FEATURES[2].problemOptions[1],
+      problemDetail: '阶段切换规则解释不足，运营很难判断策略是否按预期执行。',
       liked: {
         points: [FEATURES[2].likeOptions[0]],
         detail: '多阶段策略组方向是对的。',
@@ -81,6 +83,7 @@ const invalid = validateResponse({
         [momentsQuestionIds[0]]: 6,
       },
       mainProblem: FEATURES[0].problemOptions[0],
+      problemDetail: '',
       liked: { points: [], detail: '' },
       disliked: { points: [], detail: '' },
     },
@@ -90,6 +93,7 @@ assert.equal(invalid.ok, false);
 assert.equal(invalid.errors.includes('请填写运营角色'), true);
 assert.equal(invalid.errors.includes('评分必须在 1-5 分之间'), true);
 assert.equal(invalid.errors.includes('有功能的专属问题未完成'), true);
+assert.equal(invalid.errors.includes(`${FEATURES[0].name} 请说明最大问题的具体场景`), true);
 assert.equal(invalid.errors.includes(`${FEATURES[0].name} 请至少选择一个喜欢的点`), true);
 assert.equal(invalid.errors.includes(`${FEATURES[0].name} 请至少选择一个不喜欢的点`), true);
 
@@ -104,11 +108,12 @@ const extraEvaluation = (featureIndex) => ({
   usage: 'used',
   answers: Object.fromEntries(FEATURES[featureIndex].questions.map((question) => [question.id, 4])),
   mainProblem: FEATURES[featureIndex].problemOptions[0],
-  liked: { points: [FEATURES[featureIndex].likeOptions[0]], detail: '' },
-  disliked: { points: [FEATURES[featureIndex].dislikeOptions[0]], detail: '' },
+  problemDetail: '这里补充一个具体场景，说明最大问题为什么影响运营判断。',
+  liked: { points: [FEATURES[featureIndex].likeOptions[0]], detail: '这个点能让运营更快判断下一步。' },
+  disliked: { points: [FEATURES[featureIndex].dislikeOptions[0]], detail: '这个点会让运营不确定规则边界。' },
 });
 
-const tooMany = validateResponse({
+const manyEvaluations = validateResponse({
   ...sampleResponse,
   evaluations: [
     ...sampleResponse.evaluations,
@@ -117,8 +122,7 @@ const tooMany = validateResponse({
     extraEvaluation(5),
   ],
 });
-assert.equal(tooMany.ok, false);
-assert.equal(tooMany.errors.includes('最多选择 4 个熟悉功能评价'), true);
+assert.equal(manyEvaluations.ok, true);
 
 const normalized = normalizeResponse(sampleResponse, {
   ip: '203.0.113.8',
@@ -150,6 +154,7 @@ assert.equal(moments.responseCount, 1);
 assert.equal(moments.questionSummaries.length, FEATURES[0].questions.length);
 assert.equal(moments.questionSummaries[0].average, 5);
 assert.equal(moments.qualityAverage, 4);
+assert.equal(moments.problemComments[0], '互动处理动作和后续跟进关系需要更明确。');
 assert.equal(moments.likedComments[0], '客户点赞评论能集中看到。');
 assert.equal(moments.dislikedComments[0], '标记已处理和私聊触达的关系还不够直观。');
 assert.equal(moments.topLikedPoints[0].label, FEATURES[0].likeOptions[0]);
@@ -171,8 +176,9 @@ const adminHtml = await readFile(new URL('../public/admin.html', import.meta.url
 assert.equal(appJs.includes('function renderEvaluationWorkspace'), true);
 assert.equal(appJs.includes('id="evaluationWorkspace"'), true);
 assert.equal(appJs.includes('class="score-panel" hidden'), false);
-assert.equal(appJs.includes('MAX_EVALUATIONS = 4'), true);
-assert.equal(appJs.includes('最多选择 ${MAX_EVALUATIONS} 个熟悉功能评价'), true);
+assert.equal(appJs.includes('MAX_EVALUATIONS'), false);
+assert.equal(appJs.includes('data-action="start-evaluation"'), true);
+assert.equal(appJs.includes('data-problem-detail'), true);
 assert.equal(appJs.includes('const WORKSPACE_STEPS'), true);
 assert.equal(appJs.includes('function renderStepNav'), true);
 assert.equal(appJs.includes('function renderActiveStep'), true);
@@ -185,6 +191,7 @@ assert.equal(indexHtml.includes('overall-feedback-flow'), true);
 assert.equal(indexHtml.includes('class="large-feedback"'), true);
 assert.equal(indexHtml.includes('grid-3">\n            <div class="field">\n              <label for="favoritePoints"'), false);
 assert.equal(adminHtml.includes('snapshotTable'), true);
+assert.equal(adminHtml.includes('adminLoginForm'), true);
 
 const tempDir = await mkdtemp(join(tmpdir(), 'operator-survey-'));
 try {
@@ -217,8 +224,22 @@ try {
   assert.equal(postResult.status, 201);
 
   const summaryResult = await fetch(`${baseUrl}/api/summary`);
-  assert.equal(summaryResult.status, 200);
-  const liveSummary = await summaryResult.json();
+  assert.equal(summaryResult.status, 401);
+
+  const loginResult = await fetch(`${baseUrl}/api/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: 'admin123' }),
+  });
+  assert.equal(loginResult.status, 200);
+  const cookie = loginResult.headers.get('set-cookie');
+  assert.equal(cookie.includes('admin_session='), true);
+
+  const authedSummaryResult = await fetch(`${baseUrl}/api/summary`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(authedSummaryResult.status, 200);
+  const liveSummary = await authedSummaryResult.json();
   assert.equal(liveSummary.totalResponses, 1);
   assert.equal(liveSummary.features[0].topLikedPoints.length > 0, true);
   assert.equal(liveSummary.submissionStats.uniqueIpCount, 1);

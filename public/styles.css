@@ -255,21 +255,56 @@ textarea:focus {
   gap: 12px;
 }
 
+.survey-flow-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.flow-step {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #f7fbfc;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.flow-step.active {
+  background: #d2f7ef;
+  color: var(--teal-dark);
+}
+
 .selection-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 13px 15px;
+  gap: 16px;
+  padding: 16px;
   border-radius: 8px;
-  background: #daf8ef;
+  background: linear-gradient(135deg, #dffbf4, #eef7ff);
   color: var(--muted);
   line-height: 1.45;
+}
+
+.selection-banner > div:first-child {
+  display: grid;
+  gap: 4px;
 }
 
 .selection-banner strong {
   color: var(--teal-dark);
   white-space: nowrap;
+}
+
+.selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .feature-row {
@@ -450,6 +485,15 @@ textarea:focus {
   display: none;
 }
 
+.empty-evaluation-hint {
+  display: grid;
+  gap: 4px;
+  padding: 18px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--shadow-soft);
+}
+
 .workspace-head,
 .panel-title,
 .section-mini-head,
@@ -618,6 +662,23 @@ textarea:focus {
 .question-stack {
   display: grid;
   gap: 10px;
+}
+
+.detail-field {
+  display: grid;
+  gap: 8px;
+}
+
+.detail-field span {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.problem-detail-block {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px dashed #cfe3e8;
 }
 
 .feedback-grid {
@@ -797,6 +858,26 @@ textarea:focus {
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+.login-panel {
+  max-width: 620px;
+  margin: 18px auto 0;
+}
+
+.login-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.login-form .status {
+  grid-column: 1 / -1;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 .metric-grid {
@@ -985,7 +1066,8 @@ th {
 
   .score-question,
   .feedback-grid,
-  .overall-prompt {
+  .overall-prompt,
+  .login-form {
     grid-template-columns: 1fr;
   }
 

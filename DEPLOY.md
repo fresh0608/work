@@ -10,11 +10,13 @@
 4. Build Command 填 `npm install`。
 5. Start Command 填 `npm start`。
 6. Plan 选择 Free。
+7. Environment 里设置 `ADMIN_PASSWORD`，作为后台登录密码。
 
 应用启动后：
 
 - 问卷地址：`https://你的域名/`
 - 后台地址：`https://你的域名/admin`
+- 后台密码：使用你在 Render 环境变量里设置的 `ADMIN_PASSWORD`
 
 ## 数据说明
 

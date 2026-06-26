@@ -10,6 +10,9 @@ npm start
 
 - 运营填写页：http://localhost:5177/
 - 数据后台：http://localhost:5177/admin
+- 本地后台默认密码：`admin123`
+
+部署时建议设置环境变量 `ADMIN_PASSWORD`，覆盖默认后台密码。
 
 ## 数据
 

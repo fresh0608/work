@@ -2,7 +2,7 @@ import { createServer as createHttpServer } from 'node:http';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 const APP_ROOT = fileURLToPath(new URL('.', import.meta.url));
 const PUBLIC_ROOT = join(APP_ROOT, 'public');
@@ -10,6 +10,9 @@ const DEFAULT_STORE_PATH =
   typeof process !== 'undefined' && process.env?.DATA_FILE
     ? process.env.DATA_FILE
     : join(APP_ROOT, 'data', 'responses.json');
+const ADMIN_PASSWORD =
+  typeof process !== 'undefined' && process.env?.ADMIN_PASSWORD ? process.env.ADMIN_PASSWORD : 'admin123';
+const ADMIN_SESSION = createHash('sha256').update(`operator-survey:${ADMIN_PASSWORD}`).digest('hex');
 
 export const FEATURES = [
   {
@@ -240,10 +243,6 @@ export function validateResponse(input) {
   if (!Array.isArray(evaluations) || evaluations.length === 0) {
     errors.push('请至少评价一个你了解的功能');
   }
-  if (Array.isArray(evaluations) && evaluations.length > 4) {
-    errors.push('最多选择 4 个熟悉功能评价');
-  }
-
   for (const evaluation of evaluations) {
     const feature = findFeature(evaluation.feature);
     if (!feature) {
@@ -260,8 +259,11 @@ export function validateResponse(input) {
       if (!isScore(answers[question.id])) errors.push('评分必须在 1-5 分之间');
     }
     if (!feature.problemOptions.includes(evaluation.mainProblem)) errors.push('存在无法识别的主要问题');
+    if (!clean(evaluation.problemDetail)) errors.push(`${feature.name} 请说明最大问题的具体场景`);
     validatePointFeedback(errors, evaluation.liked, feature.likeOptions, `${feature.name} 请至少选择一个喜欢的点`);
     validatePointFeedback(errors, evaluation.disliked, feature.dislikeOptions, `${feature.name} 请至少选择一个不喜欢的点`);
+    if (!clean(evaluation.liked?.detail)) errors.push(`${feature.name} 请写清楚喜欢点的具体价值`);
+    if (!clean(evaluation.disliked?.detail)) errors.push(`${feature.name} 请写清楚不喜欢/想改点的具体场景`);
   }
 
   return { ok: errors.length === 0, errors: [...new Set(errors)] };
@@ -285,6 +287,7 @@ export function normalizeResponse(input, requestMeta = {}) {
         mainProblem: findFeature(evaluation.feature)?.problemOptions.includes(evaluation.mainProblem)
           ? evaluation.mainProblem
           : '暂无明显问题',
+        problemDetail: clean(evaluation.problemDetail),
         liked: normalizePointFeedback(evaluation.liked, findFeature(evaluation.feature)?.likeOptions),
         disliked: normalizePointFeedback(evaluation.disliked, findFeature(evaluation.feature)?.dislikeOptions),
       })),
@@ -367,7 +370,21 @@ export function createServer({ storePath = DEFAULT_STORE_PATH, publicRoot = PUBL
         });
       }
 
+      if (url.pathname === '/api/admin/status' && request.method === 'GET') {
+        return sendJson(response, { authenticated: isAdminAuthenticated(request) });
+      }
+
+      if (url.pathname === '/api/admin/login' && request.method === 'POST') {
+        const body = await readJsonBody(request);
+        if (clean(body.password) !== ADMIN_PASSWORD) {
+          return sendJson(response, { ok: false, errors: ['后台密码不正确'] }, 401);
+        }
+        setAdminCookie(response);
+        return sendJson(response, { ok: true });
+      }
+
       if (url.pathname === '/api/responses' && request.method === 'GET') {
+        if (!isAdminAuthenticated(request)) return sendUnauthorized(response);
         return sendJson(response, await readResponses(storePath));
       }
 
@@ -382,11 +399,13 @@ export function createServer({ storePath = DEFAULT_STORE_PATH, publicRoot = PUBL
       }
 
       if (url.pathname === '/api/responses' && request.method === 'DELETE') {
+        if (!isAdminAuthenticated(request)) return sendUnauthorized(response);
         await writeResponses([], storePath);
         return sendJson(response, { ok: true });
       }
 
       if (url.pathname === '/api/summary' && request.method === 'GET') {
+        if (!isAdminAuthenticated(request)) return sendUnauthorized(response);
         const responses = await readResponses(storePath);
         return sendJson(response, summarizeResponses(responses));
       }
@@ -428,9 +447,22 @@ function summarizeFeature(feature, responses) {
     topProblems: countValues(evaluations.map((item) => item.mainProblem)),
     topLikedPoints: countValues(evaluations.flatMap((item) => feedbackPoints(item.liked))),
     topDislikedPoints: countValues(evaluations.flatMap((item) => feedbackPoints(item.disliked))),
+    problemComments: evaluations.map((item) => item.problemDetail).filter(Boolean),
     likedComments: evaluations.map((item) => feedbackDetail(item.liked)).filter(Boolean),
     dislikedComments: evaluations.map((item) => feedbackDetail(item.disliked)).filter(Boolean),
   };
+}
+
+function isAdminAuthenticated(request) {
+  return parseCookies(headerValue(request, 'cookie')).admin_session === ADMIN_SESSION;
+}
+
+function setAdminCookie(response) {
+  response.setHeader('Set-Cookie', `admin_session=${ADMIN_SESSION}; HttpOnly; SameSite=Lax; Path=/`);
+}
+
+function sendUnauthorized(response) {
+  return sendJson(response, { ok: false, errors: ['请先输入后台密码'] }, 401);
 }
 
 function summarizePmSignals(features) {
@@ -659,6 +691,19 @@ function limitSnapshot(value, depth = 0) {
 function headerValue(request, name) {
   const value = request.headers?.[name];
   return Array.isArray(value) ? value.join(', ') : clean(value);
+}
+
+function parseCookies(cookieHeader = '') {
+  return String(cookieHeader)
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .reduce((cookies, part) => {
+      const index = part.indexOf('=');
+      if (index < 0) return cookies;
+      cookies[decodeURIComponent(part.slice(0, index))] = decodeURIComponent(part.slice(index + 1));
+      return cookies;
+    }, {});
 }
 
 function cleanIp(value) {

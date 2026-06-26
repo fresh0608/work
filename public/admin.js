@@ -7,6 +7,12 @@ const sourceStats = document.getElementById('sourceStats');
 const snapshotTable = document.getElementById('snapshotTable');
 const refreshButton = document.getElementById('refreshButton');
 const clearButton = document.getElementById('clearButton');
+const adminLogin = document.getElementById('adminLogin');
+const adminDashboard = document.getElementById('adminDashboard');
+const adminLoginForm = document.getElementById('adminLoginForm');
+const adminPassword = document.getElementById('adminPassword');
+const loginButton = document.getElementById('loginButton');
+const loginStatus = document.getElementById('loginStatus');
 
 let currentSummary = null;
 
@@ -21,8 +27,56 @@ const PM_DIMENSION_LABELS = {
 refreshButton.addEventListener('click', loadSummary);
 clearButton.addEventListener('click', clearData);
 featureSelect.addEventListener('change', () => renderFeatureDetail(featureSelect.value));
+adminLoginForm.addEventListener('submit', handleLogin);
 
-loadSummary();
+initAdmin();
+
+async function initAdmin() {
+  try {
+    const status = await fetchJson('/api/admin/status');
+    if (status.authenticated) {
+      showDashboard();
+      await loadSummary();
+      return;
+    }
+    showLogin('请输入后台密码后查看数据。');
+  } catch {
+    showLogin('请输入后台密码后查看数据。');
+  }
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  loginButton.disabled = true;
+  loginStatus.textContent = '正在进入...';
+  try {
+    await fetchJson('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: adminPassword.value }),
+    });
+    adminPassword.value = '';
+    showDashboard();
+    await loadSummary();
+  } catch (error) {
+    showLogin(error.message || '密码不正确');
+    adminPassword.focus();
+  } finally {
+    loginButton.disabled = false;
+  }
+}
+
+function showDashboard() {
+  adminLogin.hidden = true;
+  adminDashboard.hidden = false;
+  loginStatus.textContent = '已登录';
+}
+
+function showLogin(message) {
+  adminLogin.hidden = false;
+  adminDashboard.hidden = true;
+  loginStatus.textContent = message;
+}
 
 async function loadSummary() {
   try {
@@ -31,6 +85,10 @@ async function loadSummary() {
     renderSummary(currentSummary);
     adminStatus.textContent = `最近刷新：${new Date().toLocaleTimeString()}`;
   } catch (error) {
+    if (String(error.message).includes('请先输入后台密码')) {
+      showLogin('登录已失效，请重新输入后台密码。');
+      return;
+    }
     adminStatus.textContent = `加载失败：${error.message}`;
     renderEmpty();
   }
@@ -164,6 +222,10 @@ function renderFeatureDetail(featureName) {
       <div class="repeat-item">
         <h3>喜欢点分布</h3>
         ${renderMiniList((feature.topLikedPoints || []).slice(0, 6))}
+      </div>
+      <div class="repeat-item">
+        <h3>最大问题场景补充</h3>
+        ${feature.problemComments?.length ? renderTextList(feature.problemComments.slice(0, 8)) : '<span class="empty">暂无</span>'}
       </div>
       <div class="repeat-item">
         <h3>喜欢场景补充</h3>

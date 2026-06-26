@@ -3,9 +3,9 @@ const state = {
   evaluations: new Map(),
   activeFeature: '',
   activeSteps: new Map(),
+  evaluationStarted: false,
 };
 
-const MAX_EVALUATIONS = 4;
 const WORKSPACE_STEPS = [
   {
     id: 'score',
@@ -16,14 +16,14 @@ const WORKSPACE_STEPS = [
   {
     id: 'problem',
     label: '最大问题',
-    title: '如果只能选一个最大问题',
-    hint: '选最影响你判断或使用的一项。',
+    title: '先选最影响使用的一类问题',
+    hint: '选完后请补充一个具体场景，方便判断问题来自业务理解、规则边界还是体验设计。',
   },
   {
     id: 'liked',
     label: '喜欢的点',
     title: '哪里值得保留',
-    hint: '快捷选项和自定义合计最多 3 个，再补一个具体场景。',
+    hint: '快捷选项和自定义合计最多 3 个；选完后请说清楚为什么有价值。',
   },
   {
     id: 'disliked',
@@ -57,9 +57,21 @@ async function init() {
 function renderFeatureGroups() {
   const groups = groupBy(state.config.features, 'group');
   document.getElementById('featureGroups').innerHTML = `
+    <div class="survey-flow-strip" aria-label="填写进度">
+      <span class="flow-step active">1 选择熟悉功能</span>
+      <span class="flow-step" id="detailFlowStep">2 逐个详细评价</span>
+      <span class="flow-step">3 写整体反馈</span>
+    </div>
     <div class="selection-banner">
-      <strong id="selectedCount">已选择 0/4</strong>
-      <span id="selectedAdvice">先在上面挑功能，下面会出现独立填写区。建议评价 2-4 个，至少 1 个可提交。</span>
+      <div>
+        <strong id="selectedCount">已选择 0 个</strong>
+        <span id="selectedAdvice">先把你能说出感受的功能加入清单；熟悉几个就选几个，可以全部评价。</span>
+      </div>
+      <div class="selection-actions">
+        <button class="button primary" id="startEvaluationButton" type="button" data-action="start-evaluation" disabled>
+          开始详细评价
+        </button>
+      </div>
     </div>
     <div class="feature-picker">
       ${Object.entries(groups)
@@ -100,9 +112,16 @@ function renderEvaluationWorkspace() {
   if (!workspace) return;
 
   const selectedFeatures = getSelectedFeatures();
-  if (!selectedFeatures.length) {
+  if (!selectedFeatures.length || !state.evaluationStarted) {
     workspace.hidden = true;
-    workspace.innerHTML = '';
+    workspace.innerHTML = !selectedFeatures.length
+      ? ''
+      : `
+        <div class="empty-evaluation-hint">
+          <strong>清单已选好</strong>
+          <p>点击上面的“开始详细评价”，再逐个功能填写。这样页面不会一下子展开太多内容。</p>
+        </div>
+      `;
     return;
   }
 
@@ -118,9 +137,9 @@ function renderEvaluationWorkspace() {
     <div class="workspace-head">
       <div>
         <h3>填写已选功能</h3>
-        <p>每次只处理一个功能、一个步骤；切换功能不会丢失已填写内容。</p>
+        <p>每次只处理一个功能、一个步骤；切换功能不会丢失已填写内容。还想补选功能，可以回到上面的功能清单继续点选。</p>
       </div>
-      <span class="workspace-count">${selectedFeatures.length}/${MAX_EVALUATIONS}</span>
+      <span class="workspace-count">${selectedFeatures.length} 个功能</span>
     </div>
     <div class="feature-tabs" role="tablist" aria-label="已选功能">
       ${selectedFeatures.map((item) => renderFeatureTab(item)).join('')}
@@ -210,6 +229,10 @@ function renderActiveStep(feature, evaluation) {
           .map((problem) => radioChip(`problem-${feature.name}`, problem, evaluation.mainProblem === problem))
           .join('')}
       </div>
+      <label class="detail-field problem-detail-block">
+        <span>为什么这是最大问题？</span>
+        <textarea data-problem-detail placeholder="例如：规则只告诉我分配结果，但没有说明为什么这样分。我无法判断这是不是符合实际业务优先级，也不知道异常时该不该人工介入。">${escapeHtml(evaluation.problemDetail)}</textarea>
+      </label>
     `;
   }
 
@@ -284,6 +307,10 @@ function bindEvents() {
       toggleFeature(feature);
       return;
     }
+    if (button.dataset.action === 'start-evaluation') {
+      startEvaluation();
+      return;
+    }
     if (button.dataset.action === 'activate') {
       state.activeFeature = feature;
       renderEvaluationWorkspace();
@@ -321,6 +348,14 @@ function bindEvents() {
   });
 
   document.getElementById('featureGroups').addEventListener('input', (event) => {
+    const problemDetail = event.target.closest('textarea[data-problem-detail]');
+    if (problemDetail) {
+      const panel = problemDetail.closest('[data-evaluation-panel]');
+      const evaluation = ensureEvaluation(panel.dataset.evaluationPanel);
+      evaluation.problemDetail = problemDetail.value;
+      return;
+    }
+
     const customInput = event.target.closest('input[data-feedback-custom]');
     if (customInput) {
       const panel = customInput.closest('[data-evaluation-panel]');
@@ -348,14 +383,10 @@ function toggleFeature(feature) {
     state.evaluations.delete(feature);
     state.activeSteps.delete(feature);
     if (state.activeFeature === feature) state.activeFeature = getSelectedFeatures()[0]?.name || '';
+    if (state.evaluations.size === 0) state.evaluationStarted = false;
     syncFeatureCards();
     updateSelectedCount();
     renderEvaluationWorkspace();
-    return;
-  }
-
-  if (state.evaluations.size >= MAX_EVALUATIONS) {
-    showErrors([`最多选择 ${MAX_EVALUATIONS} 个熟悉功能评价。可以先取消一个，再选择新的功能。`]);
     return;
   }
 
@@ -364,6 +395,19 @@ function toggleFeature(feature) {
   syncFeatureCards();
   updateSelectedCount();
   renderEvaluationWorkspace();
+}
+
+function startEvaluation() {
+  hideErrors();
+  if (!state.evaluations.size) {
+    showErrors(['请先选择至少 1 个你熟悉的功能，再开始详细评价。']);
+    return;
+  }
+  state.evaluationStarted = true;
+  if (!state.activeFeature) state.activeFeature = getSelectedFeatures()[0]?.name || '';
+  updateSelectedCount();
+  renderEvaluationWorkspace();
+  document.getElementById('evaluationWorkspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function getActiveStep(featureName) {
@@ -423,17 +467,22 @@ function syncFeatureCards() {
 function updateSelectedCount() {
   const counter = document.getElementById('selectedCount');
   const advice = document.getElementById('selectedAdvice');
+  const startButton = document.getElementById('startEvaluationButton');
+  const detailStep = document.getElementById('detailFlowStep');
   const count = state.evaluations.size;
-  if (counter) counter.textContent = `已选择 ${count}/${MAX_EVALUATIONS}`;
+  if (counter) counter.textContent = `已选择 ${count} 个`;
+  if (startButton) {
+    startButton.disabled = count === 0;
+    startButton.textContent = state.evaluationStarted ? '继续详细评价' : '开始详细评价';
+  }
+  if (detailStep) detailStep.classList.toggle('active', state.evaluationStarted);
   if (!advice) return;
   if (count === 0) {
-    advice.textContent = '先在上面挑功能，下面会出现独立填写区。建议评价 2-4 个，至少 1 个可提交。';
+    advice.textContent = '先把你能说出感受的功能加入清单；熟悉几个就选几个，可以全部评价。';
   } else if (count === 1) {
-    advice.textContent = '已经可以提交；如果还有熟悉功能，再补 1 个会更好对比。';
-  } else if (count < MAX_EVALUATIONS) {
-    advice.textContent = '这样已经很有参考价值；还有熟悉功能可以继续补充。';
+    advice.textContent = '已选 1 个，可以开始；如果还有熟悉功能，再补几个会更容易看出设计差异。';
   } else {
-    advice.textContent = '已达到本次建议上限，可以开始填写并提交。';
+    advice.textContent = `已选 ${count} 个。熟悉的都可以评价，下一步会逐个展示，不会一次性铺开。`;
   }
 }
 
@@ -470,6 +519,7 @@ function ensureEvaluation(feature) {
       usage: 'used',
       answers: {},
       mainProblem: '',
+      problemDetail: '',
       liked: { points: [], customPoint: '', detail: '' },
       disliked: { points: [], customPoint: '', detail: '' },
     });
@@ -537,7 +587,6 @@ function validatePayload(payload) {
   const errors = [];
   if (!payload.profile.role.trim()) errors.push('请填写运营角色');
   if (!payload.evaluations.length) errors.push('请至少选择 1 个熟悉功能评价');
-  if (payload.evaluations.length > MAX_EVALUATIONS) errors.push(`最多选择 ${MAX_EVALUATIONS} 个熟悉功能评价`);
 
   payload.evaluations.forEach((evaluation) => {
     const feature = state.config.features.find((item) => item.name === evaluation.feature);
@@ -546,8 +595,11 @@ function validatePayload(payload) {
     );
     if (missing.length) errors.push(`${evaluation.feature} 还有问题未评分`);
     if (!evaluation.mainProblem) errors.push(`${evaluation.feature} 请选择最大问题`);
+    if (!evaluation.problemDetail.trim()) errors.push(`${evaluation.feature} 请说明为什么这是最大问题`);
     if (!evaluation.liked.points.length) errors.push(`${evaluation.feature} 请至少选择一个喜欢的点`);
+    if (!evaluation.liked.detail.trim()) errors.push(`${evaluation.feature} 请写清楚喜欢点的具体价值`);
     if (!evaluation.disliked.points.length) errors.push(`${evaluation.feature} 请至少选择一个不喜欢的点`);
+    if (!evaluation.disliked.detail.trim()) errors.push(`${evaluation.feature} 请写清楚不喜欢/想改点的具体场景`);
     if (evaluation.liked.points.length > 3) errors.push(`${evaluation.feature} 喜欢的点最多选 3 个`);
     if (evaluation.disliked.points.length > 3) errors.push(`${evaluation.feature} 不喜欢的点最多选 3 个`);
   });
