@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2026Q1 产品功能设计调研</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">轻量产品调研</p>
+        <h1>哪些功能真好用，哪里最影响运营？</h1>
+        <p>建议选择 2-4 个熟悉功能；至少 1 个也可以提交，重点说清楚喜欢和不喜欢的具体点。</p>
+      </div>
+    </header>
+
+    <form id="surveyForm" novalidate>
+      <section class="section">
+        <div class="section-header">
+          <h2>填写人信息</h2>
+          <p>只用于分组看反馈，不做个人考核。</p>
+        </div>
+        <div class="section-body">
+          <div class="field">
+            <label for="role">你的运营角色</label>
+            <input id="role" name="role" type="text" placeholder="例如：私域运营、投放运营、线索运营、撮合运营" required>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <h2>功能评价</h2>
+          <p>不用评价所有功能，只挑你能说出使用感受的功能。</p>
+        </div>
+        <div class="section-body">
+          <div id="featureGroups" class="stack"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <h2>整体反馈</h2>
+          <p>尽量写具体场景，便于反推出功能设计是否贴合业务、规则是否讲得清楚。</p>
+        </div>
+        <div class="section-body">
+          <div class="grid-3">
+            <div class="field">
+              <label for="favoritePoints">你熟悉的功能里，最能体现设计靠谱的点是什么？</label>
+              <textarea id="favoritePoints" placeholder="例如：私聊分组能按「客户意向 + 是否需人工介入」筛出要跟的会话，说明它理解运营分层和跟进优先级。"></textarea>
+            </div>
+            <div class="field">
+              <label for="dislikedPoints">你熟悉的功能里，最暴露设计不足的点是什么？</label>
+              <textarea id="dislikedPoints" placeholder="例如：自动分配只给出结果，不说明为什么分给这个人，我很难判断规则是否合理、是否需要人工介入。"></textarea>
+            </div>
+            <div class="field">
+              <label for="nextImprove">如果只能先改一件事，你希望改什么？</label>
+              <textarea id="nextImprove" placeholder="例如：先把动态策略组的阶段切换条件、触发时机和兜底动作放在同一处，让运营能判断规则边界。"></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div id="errors" class="error-box"></div>
+      <div class="footer-actions">
+        <span class="status" id="formStatus">尚未提交</span>
+        <button class="button primary" id="submitButton" type="submit">提交反馈</button>
+      </div>
+    </form>
+
+    <section id="successView" class="success-box" hidden>
+      <h2>已提交</h2>
+      <p>感谢反馈。后台会按功能、喜欢点、不喜欢点和改进优先级做汇总。</p>
+      <div class="top-actions">
+        <button class="button primary" id="againButton" type="button">再填一份</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

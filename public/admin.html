@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>运营功能调研后台</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">数据后台</p>
+        <h1>产品功能设计质量看板</h1>
+        <p>实时查看功能设计合理性、完整性、严谨性、体验问题和 AI 可信度。</p>
+      </div>
+      <div class="top-actions">
+        <a class="button" href="/">填写问卷</a>
+        <button class="button" id="refreshButton" type="button">刷新数据</button>
+        <button class="button danger" id="clearButton" type="button">清空数据</button>
+      </div>
+    </header>
+
+    <section class="metric-grid" id="metricGrid"></section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>提交与来源统计</h2>
+        <p>用于排查重复提交和样本来源，不展示在问卷页。</p>
+      </div>
+      <div class="section-body">
+        <div id="sourceStats" class="grid-3"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>功能设计质量</h2>
+        <p id="adminStatus">正在加载...</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>功能</th>
+              <th>综合分</th>
+              <th>样本</th>
+              <th>业务理解</th>
+              <th>完整性</th>
+              <th>严谨性</th>
+              <th>体验</th>
+              <th>AI</th>
+              <th>主要问题</th>
+            </tr>
+          </thead>
+          <tbody id="healthTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>功能明细</h2>
+        <select id="featureSelect" aria-label="选择功能" style="max-width: 420px;"></select>
+      </div>
+      <div class="section-body">
+        <div id="featureDetail" class="detail-layout"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>提交记录与快照</h2>
+        <p>保留每个人提交时的原始答案、IP、设备和浏览器信息。</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>提交时间</th>
+              <th>角色</th>
+              <th>IP</th>
+              <th>设备</th>
+              <th>评价功能</th>
+              <th>填写快照</th>
+            </tr>
+          </thead>
+          <tbody id="snapshotTable"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>
