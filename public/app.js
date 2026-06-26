@@ -9,9 +9,9 @@ const state = {
 const WORKSPACE_STEPS = [
   {
     id: 'score',
-    label: '使用判断',
-    title: '先判断这个功能是否顺手',
-    hint: '按你的实际感受打分，不需要考虑“标准答案”。',
+    label: '任务判断',
+    title: '先判断它能不能帮你完成运营任务',
+    hint: '不用打分，直接选择最接近你实际感受的判断。',
   },
   {
     id: 'problem',
@@ -38,6 +38,16 @@ const successView = document.getElementById('successView');
 const errorBox = document.getElementById('errors');
 const formStatus = document.getElementById('formStatus');
 const submitButton = document.getElementById('submitButton');
+const overallSection = document.getElementById('overallSection');
+const submitArea = document.getElementById('submitArea');
+
+const RESPONSE_SCALE = [
+  { value: 1, label: '完全不能', short: '不能' },
+  { value: 2, label: '不太能', short: '较弱' },
+  { value: 3, label: '说不准', short: '一般' },
+  { value: 4, label: '基本能', short: '较好' },
+  { value: 5, label: '完全能', short: '很好' },
+];
 
 init();
 
@@ -88,6 +98,13 @@ function renderFeatureGroups() {
         .join('')}
     </div>
     <section id="evaluationWorkspace" class="evaluation-workspace" hidden></section>
+    <div class="selection-dock" id="selectionDock" hidden>
+      <div>
+        <strong id="dockSelectedCount">已选择 0 个功能</strong>
+        <span>选完就从这里进入详细评价，不用回到页面上方。</span>
+      </div>
+      <button class="button primary" type="button" data-action="start-evaluation">开始详细评价</button>
+    </div>
   `;
 }
 
@@ -176,14 +193,16 @@ function renderScoreQuestion(feature, question, evaluation) {
   return `
     <div class="score-question" data-score-question="${question.id}">
       <div class="score-copy">
+        <span class="question-kicker">判断项</span>
         <div class="label">${escapeHtml(question.text)}</div>
       </div>
       <div class="score-row">
-        ${[1, 2, 3, 4, 5]
+        ${RESPONSE_SCALE
           .map(
-            (score) => `
-              <button class="seg small-score${current === score ? ' active' : ''}" type="button" data-action="score" data-feature="${escapeAttr(feature.name)}" data-question="${question.id}" data-value="${score}" aria-label="${score} 分">
-                ${score}
+            (option) => `
+              <button class="seg small-score${current === option.value ? ' active' : ''}" type="button" data-action="score" data-feature="${escapeAttr(feature.name)}" data-question="${question.id}" data-value="${option.value}" aria-label="${escapeAttr(`${question.text}：${option.label}`)}">
+                <strong>${escapeHtml(option.short)}</strong>
+                <span>${escapeHtml(option.label)}</span>
               </button>
             `,
           )
@@ -407,6 +426,8 @@ function startEvaluation() {
   if (!state.activeFeature) state.activeFeature = getSelectedFeatures()[0]?.name || '';
   updateSelectedCount();
   renderEvaluationWorkspace();
+  overallSection.hidden = false;
+  submitArea.hidden = false;
   document.getElementById('evaluationWorkspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -469,12 +490,18 @@ function updateSelectedCount() {
   const advice = document.getElementById('selectedAdvice');
   const startButton = document.getElementById('startEvaluationButton');
   const detailStep = document.getElementById('detailFlowStep');
+  const dock = document.getElementById('selectionDock');
+  const dockSelectedCount = document.getElementById('dockSelectedCount');
   const count = state.evaluations.size;
   if (counter) counter.textContent = `已选择 ${count} 个`;
   if (startButton) {
     startButton.disabled = count === 0;
     startButton.textContent = state.evaluationStarted ? '继续详细评价' : '开始详细评价';
   }
+  if (dock) dock.hidden = count === 0 || state.evaluationStarted;
+  if (dockSelectedCount) dockSelectedCount.textContent = `已选择 ${count} 个功能`;
+  if (overallSection) overallSection.hidden = !state.evaluationStarted;
+  if (submitArea) submitArea.hidden = !state.evaluationStarted;
   if (detailStep) detailStep.classList.toggle('active', state.evaluationStarted);
   if (!advice) return;
   if (count === 0) {

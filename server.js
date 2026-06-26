@@ -70,7 +70,7 @@ export const FEATURES = [
     aiRelated: true,
     questions: [
       q('group_selection_fit', '系统推荐/圈选的交付群，和你实际要服务的客户是否匹配？', 'businessUnderstanding'),
-      q('group_selection_rule', '选群结果出来后，你能不能判断有没有错群或漏群？', 'architectureDesign'),
+      q('group_selection_rule', '选群结果出来后，你是否能判断群选择是否准确、是否遗漏？', 'architectureDesign'),
       q('group_selection_operation', '运营在使用时是否能顺手确认和调整群选择？', 'userExperience'),
     ],
     problemOptions: ['选群不准', '选群依据不清楚', '调整方式不清楚', '容易错群漏群', '暂无明显问题'],
@@ -106,7 +106,7 @@ export const FEATURES = [
     aiRelated: true,
     questions: [
       q('commercial_package_fit', '客户或公司问怎么买、买什么时，页面信息能不能帮你解释清楚？', 'businessUnderstanding'),
-      q('commercial_chain_complete', '从购买到线索交付，中间有没有容易对不上、没人跟的地方？', 'productDesign'),
+      q('commercial_chain_complete', '从购买到线索交付，每一步由谁处理、什么时候交付是否清楚？', 'productDesign'),
       q('commercial_rule_clear', '套餐什么时候生效、怎么分配、出问题找谁，你能不能判断？', 'architectureDesign'),
     ],
     problemOptions: ['购买入口不清楚', '套餐规则难理解', '购买后交付对不上', '合同/财务问题不知道找谁', '暂无明显问题'],
@@ -118,7 +118,7 @@ export const FEATURES = [
     aiRelated: false,
     questions: [
       q('assign_popup_info_help', '新增分配次数、房源标签、剩余天数等信息是否能帮助你判断分给谁？', 'businessUnderstanding'),
-      q('assign_popup_info_enough', '弹窗里的信息对你做分配判断来说，是不够、刚好还是太多？', 'productDesign'),
+      q('assign_popup_info_enough', '弹窗里的信息量，是否刚好能支持你判断分配对象？', 'productDesign'),
       q('assign_popup_layout', '全屏/布局调整后，查找和分配是否更顺手？', 'userExperience'),
     ],
     problemOptions: ['信息仍不够', '信息太多看不清', '筛选不好用', '分配判断帮助不大', '暂无明显问题'],
@@ -130,8 +130,8 @@ export const FEATURES = [
     aiRelated: true,
     questions: [
       q('lead_workbench_conversation', '以“会话”为维度管理线索，是否符合运营追踪客户的方式？', 'businessUnderstanding'),
-      q('lead_workbench_lifecycle', '查看、分配、转派、失效、判客这些日常动作，会不会找不到入口或漏一步？', 'productDesign'),
-      q('lead_workbench_multi_leads', '一个会话里有多条线索时，你会不会分不清该处理哪一条？', 'architectureDesign'),
+      q('lead_workbench_lifecycle', '查看、分配、转派、失效、判客这些日常动作，入口和处理顺序是否清楚？', 'productDesign'),
+      q('lead_workbench_multi_leads', '一个会话里有多条线索时，你是否能明确当前要处理哪一条？', 'architectureDesign'),
     ],
     problemOptions: ['会话维度不直观', '日常动作不好找', '多线索状态混乱', '操作入口不顺', '暂无明显问题'],
   },

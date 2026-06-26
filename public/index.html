@@ -17,7 +17,7 @@
     </header>
 
     <form id="surveyForm" novalidate>
-      <section class="section">
+      <section class="section" id="overallSection" hidden>
         <div class="section-header">
           <h2>填写人信息</h2>
           <p>只用于分组看反馈，不做个人考核。</p>
@@ -76,7 +76,7 @@
       </section>
 
       <div id="errors" class="error-box"></div>
-      <div class="footer-actions">
+      <div class="footer-actions" id="submitArea" hidden>
         <span class="status" id="formStatus">尚未提交</span>
         <button class="button primary" id="submitButton" type="submit">提交反馈</button>
       </div>
