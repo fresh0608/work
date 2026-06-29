@@ -6,6 +6,7 @@ const featureDetail = document.getElementById('featureDetail');
 const sourceStats = document.getElementById('sourceStats');
 const snapshotTable = document.getElementById('snapshotTable');
 const refreshButton = document.getElementById('refreshButton');
+const exportButton = document.getElementById('exportButton');
 const clearButton = document.getElementById('clearButton');
 const adminLogin = document.getElementById('adminLogin');
 const adminDashboard = document.getElementById('adminDashboard');
@@ -25,6 +26,7 @@ const PM_DIMENSION_LABELS = {
 };
 
 refreshButton.addEventListener('click', loadSummary);
+exportButton.addEventListener('click', exportResponses);
 clearButton.addEventListener('click', clearData);
 featureSelect.addEventListener('change', () => renderFeatureDetail(featureSelect.value));
 adminLoginForm.addEventListener('submit', handleLogin);
@@ -99,6 +101,20 @@ async function clearData() {
   if (!confirmed) return;
   await fetchJson('/api/responses', { method: 'DELETE' });
   await loadSummary();
+}
+
+async function exportResponses() {
+  const responses = await fetchJson('/api/responses');
+  const blob = new Blob([`${JSON.stringify(responses, null, 2)}\n`], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  link.href = url;
+  link.download = `operator-survey-responses-${stamp}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function renderSummary(summary) {

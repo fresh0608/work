@@ -169,6 +169,36 @@ assert.equal(summary.pmSignals.businessUnderstanding.score, 4.5);
 assert.equal(summary.pmSignals.architectureDesign.score, 3);
 assert.equal(summary.pmSignals.userExperience.score, 2.5);
 
+{
+  const durableStore = {
+    saved: [],
+    async read() {
+      return this.saved;
+    },
+    async write(responses) {
+      this.saved = responses;
+    },
+    async append(response) {
+      this.saved = [...this.saved, response];
+      return response;
+    },
+  };
+  const server = createServer({ responseStore: durableStore });
+  await new Promise((resolve) => server.listen(0, resolve));
+  const { port } = server.address();
+  const baseUrl = `http://127.0.0.1:${port}`;
+
+  const postResult = await fetch(`${baseUrl}/api/responses`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sampleResponse),
+  });
+  assert.equal(postResult.status, 201);
+  assert.equal(durableStore.saved.length, 1);
+
+  await new Promise((resolve) => server.close(resolve));
+}
+
 const appJs = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
 const stylesCss = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
 const indexHtml = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
@@ -230,7 +260,9 @@ assert.equal(stylesCss.includes('.evaluation-layout'), true);
 assert.equal(stylesCss.includes('.feature-rail'), true);
 assert.equal(adminHtml.includes('snapshotTable'), true);
 assert.equal(adminHtml.includes('adminLoginForm'), true);
+assert.equal(adminHtml.includes('exportButton'), true);
 assert.equal(adminHtml.includes('admin123'), false);
+assert.equal((await readFile(new URL('../public/admin.js', import.meta.url), 'utf8')).includes('function exportResponses'), true);
 
 const tempDir = await mkdtemp(join(tmpdir(), 'operator-survey-'));
 try {

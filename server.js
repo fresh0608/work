@@ -10,6 +10,8 @@ const DEFAULT_STORE_PATH =
   typeof process !== 'undefined' && process.env?.DATA_FILE
     ? process.env.DATA_FILE
     : join(APP_ROOT, 'data', 'responses.json');
+const DATABASE_URL =
+  typeof process !== 'undefined' && process.env?.DATABASE_URL ? process.env.DATABASE_URL : '';
 const ADMIN_PASSWORD =
   typeof process !== 'undefined' && process.env?.ADMIN_PASSWORD ? process.env.ADMIN_PASSWORD : 'admin123';
 const ADMIN_SESSION = createHash('sha256').update(`operator-survey:${ADMIN_PASSWORD}`).digest('hex');
@@ -357,7 +359,93 @@ export async function appendResponse(response, storePath = DEFAULT_STORE_PATH) {
   return response;
 }
 
-export function createServer({ storePath = DEFAULT_STORE_PATH, publicRoot = PUBLIC_ROOT } = {}) {
+export function createFileResponseStore(storePath = DEFAULT_STORE_PATH) {
+  return {
+    read: () => readResponses(storePath),
+    write: (responses) => writeResponses(responses, storePath),
+    append: (response) => appendResponse(response, storePath),
+  };
+}
+
+export function createPostgresResponseStore(connectionString = DATABASE_URL) {
+  let poolPromise;
+  let readyPromise;
+
+  async function getPool() {
+    if (!poolPromise) {
+      poolPromise = import('pg').then(({ Pool }) => new Pool({ connectionString }));
+    }
+    return poolPromise;
+  }
+
+  async function ensureReady() {
+    if (!readyPromise) {
+      readyPromise = getPool().then((pool) =>
+        pool.query(`
+          CREATE TABLE IF NOT EXISTS survey_responses (
+            id text PRIMARY KEY,
+            created_at timestamptz NOT NULL,
+            payload jsonb NOT NULL
+          )
+        `),
+      );
+    }
+    await readyPromise;
+  }
+
+  return {
+    async read() {
+      await ensureReady();
+      const pool = await getPool();
+      const result = await pool.query(
+        'SELECT payload FROM survey_responses ORDER BY created_at ASC, id ASC',
+      );
+      return result.rows.map((row) => row.payload);
+    },
+    async write(responses) {
+      await ensureReady();
+      const pool = await getPool();
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('DELETE FROM survey_responses');
+        for (const response of responses || []) {
+          await client.query(
+            'INSERT INTO survey_responses (id, created_at, payload) VALUES ($1, $2, $3)',
+            [response.id, response.createdAt, response],
+          );
+        }
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+    async append(response) {
+      await ensureReady();
+      const pool = await getPool();
+      await pool.query(
+        `INSERT INTO survey_responses (id, created_at, payload)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (id) DO UPDATE SET created_at = EXCLUDED.created_at, payload = EXCLUDED.payload`,
+        [response.id, response.createdAt, response],
+      );
+      return response;
+    },
+  };
+}
+
+export function createDefaultResponseStore(storePath = DEFAULT_STORE_PATH) {
+  return DATABASE_URL ? createPostgresResponseStore(DATABASE_URL) : createFileResponseStore(storePath);
+}
+
+export function createServer({
+  storePath = DEFAULT_STORE_PATH,
+  publicRoot = PUBLIC_ROOT,
+  responseStore = createDefaultResponseStore(storePath),
+} = {}) {
   return createHttpServer(async (request, response) => {
     try {
       const url = new URL(request.url, 'http://localhost');
@@ -385,7 +473,7 @@ export function createServer({ storePath = DEFAULT_STORE_PATH, publicRoot = PUBL
 
       if (url.pathname === '/api/responses' && request.method === 'GET') {
         if (!isAdminAuthenticated(request)) return sendUnauthorized(response);
-        return sendJson(response, await readResponses(storePath));
+        return sendJson(response, await responseStore.read());
       }
 
       if (url.pathname === '/api/responses' && request.method === 'POST') {
@@ -394,19 +482,19 @@ export function createServer({ storePath = DEFAULT_STORE_PATH, publicRoot = PUBL
         if (!validation.ok) {
           return sendJson(response, { ok: false, errors: validation.errors }, 400);
         }
-        const saved = await appendResponse(normalizeResponse(body, getRequestMeta(request)), storePath);
+        const saved = await responseStore.append(normalizeResponse(body, getRequestMeta(request)));
         return sendJson(response, { ok: true, response: saved }, 201);
       }
 
       if (url.pathname === '/api/responses' && request.method === 'DELETE') {
         if (!isAdminAuthenticated(request)) return sendUnauthorized(response);
-        await writeResponses([], storePath);
+        await responseStore.write([]);
         return sendJson(response, { ok: true });
       }
 
       if (url.pathname === '/api/summary' && request.method === 'GET') {
         if (!isAdminAuthenticated(request)) return sendUnauthorized(response);
-        const responses = await readResponses(storePath);
+        const responses = await responseStore.read();
         return sendJson(response, summarizeResponses(responses));
       }
 

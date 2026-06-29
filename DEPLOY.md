@@ -11,6 +11,7 @@
 5. Start Command 填 `npm start`。
 6. Plan 选择 Free。
 7. Environment 里设置 `ADMIN_PASSWORD`，作为后台登录密码。
+8. Blueprint 会同时创建 `operator-survey-db`，并把 `DATABASE_URL` 注入到 Web Service。线上提交会优先写入数据库，避免重启或重新部署后丢失。
 
 应用启动后：
 
@@ -20,10 +21,10 @@
 
 ## 数据说明
 
-当前版本使用 `data/responses.json` 保存提交数据，后台会记录：
+线上版本使用 Render Postgres 保存提交数据；本地未配置 `DATABASE_URL` 时，才会使用 `data/responses.json` 作为开发兜底。后台会记录：
 
 - 每次提交的填写快照
 - IP、浏览器、设备类型
 - 角色、评价功能、提交时间
 
-Render 免费实例的本地文件适合短期收集问卷。若后续要长期正式使用，建议把存储切到 Supabase 或 Render Postgres。
+后台提供“导出原始数据”按钮，正式收集期间建议每天导出一次备份。

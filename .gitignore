@@ -7,3 +7,4 @@ server.err.log
 bin/
 gh_*.zip
 LICENSE
+render-*-backup.json
