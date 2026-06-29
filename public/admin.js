@@ -1,5 +1,6 @@
 const metricGrid = document.getElementById('metricGrid');
 const healthTable = document.getElementById('healthTable');
+const problemTable = document.getElementById('problemTable');
 const adminStatus = document.getElementById('adminStatus');
 const featureSelect = document.getElementById('featureSelect');
 const featureDetail = document.getElementById('featureDetail');
@@ -135,6 +136,7 @@ function renderSummary(summary) {
 
   renderSourceStats(summary);
   renderSnapshotTable(summary.submissions || []);
+  renderProblemTable(sorted);
 
   healthTable.innerHTML = sorted.length
     ? sorted.map(renderFeatureRow).join('')
@@ -151,6 +153,36 @@ function renderSummary(summary) {
     .map((feature) => `<option value="${escapeAttr(feature.name)}">${escapeHtml(feature.name)}</option>`)
     .join('');
   renderFeatureDetail(sorted[0]?.name || '');
+}
+
+function renderProblemTable(features) {
+  problemTable.innerHTML = features.length
+    ? features.map(renderProblemRow).join('')
+    : `<tr><td colspan="6"><span class="empty">暂无提交数据。</span></td></tr>`;
+
+  problemTable.querySelectorAll('[data-feature]').forEach((button) => {
+    button.addEventListener('click', () => {
+      featureSelect.value = button.dataset.feature;
+      renderFeatureDetail(button.dataset.feature);
+      featureDetail.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+  });
+}
+
+function renderProblemRow(feature) {
+  return `
+    <tr>
+      <td>
+        <button class="button small" type="button" data-feature="${escapeAttr(feature.name)}">${escapeHtml(feature.name)}</button>
+        <span class="tiny">${escapeHtml(feature.group)}</span>
+      </td>
+      <td>${feature.responseCount}</td>
+      <td>${renderMiniList((feature.topProblems || []).slice(0, 4))}</td>
+      <td>${renderMiniList((feature.topDislikedPoints || []).slice(0, 4))}</td>
+      <td>${renderTextList((feature.problemComments || []).slice(0, 3))}</td>
+      <td>${renderTextList((feature.dislikedComments || []).slice(0, 3))}</td>
+    </tr>
+  `;
 }
 
 function renderFeatureRow(feature) {
@@ -219,47 +251,44 @@ function renderFeatureDetail(featureName) {
 
   featureDetail.innerHTML = `
     <div class="stack">
-      <div class="grid-3">
-        ${smallMetric('综合分', formatScore(feature.qualityAverage))}
-        ${smallMetric('样本数', feature.responseCount)}
-        ${smallMetric('业务理解', formatScore(feature.businessFitAverage))}
-        ${smallMetric('完整性', formatScore(feature.completenessAverage))}
-        ${smallMetric('严谨性', formatScore(feature.rigorAverage))}
-        ${smallMetric('体验', formatScore(feature.usabilityAverage))}
+      <div class="repeat-item">
+        <h3>主要问题分布</h3>
+        ${renderMiniList((feature.topProblems || []).slice(0, 8))}
+      </div>
+      <div class="repeat-item problem-comments">
+        <h3>最大问题说明</h3>
+        ${feature.problemComments?.length ? renderTextList(feature.problemComments.slice(0, 12)) : '<span class="empty">暂无</span>'}
       </div>
       <div class="repeat-item">
-        <h3>功能说明</h3>
-        <p>${escapeHtml(feature.description)}</p>
+        <h3>想改点分布</h3>
+        ${renderMiniList((feature.topDislikedPoints || []).slice(0, 8))}
       </div>
-      <div class="repeat-item">
-        <h3>专属问题得分</h3>
-        ${renderQuestionSummaries(feature.questionSummaries)}
+      <div class="repeat-item problem-comments">
+        <h3>想改说明</h3>
+        ${feature.dislikedComments.length ? renderTextList(feature.dislikedComments.slice(0, 12)) : '<span class="empty">暂无</span>'}
       </div>
       <div class="repeat-item">
         <h3>喜欢点分布</h3>
         ${renderMiniList((feature.topLikedPoints || []).slice(0, 6))}
       </div>
       <div class="repeat-item">
-        <h3>最大问题场景补充</h3>
-        ${feature.problemComments?.length ? renderTextList(feature.problemComments.slice(0, 8)) : '<span class="empty">暂无</span>'}
-      </div>
-      <div class="repeat-item">
-        <h3>喜欢场景补充</h3>
+        <h3>喜欢说明</h3>
         ${feature.likedComments.length ? renderTextList(feature.likedComments.slice(0, 8)) : '<span class="empty">暂无</span>'}
-      </div>
-      <div class="repeat-item">
-        <h3>不喜欢点分布</h3>
-        ${renderMiniList((feature.topDislikedPoints || []).slice(0, 6))}
-      </div>
-      <div class="repeat-item">
-        <h3>不喜欢场景补充</h3>
-        ${feature.dislikedComments.length ? renderTextList(feature.dislikedComments.slice(0, 8)) : '<span class="empty">暂无</span>'}
       </div>
     </div>
     <div class="stack">
       <div class="repeat-item">
-        <h3>主要问题</h3>
-        ${renderMiniList(feature.topProblems.slice(0, 6))}
+        <h3>功能说明</h3>
+        <p>${escapeHtml(feature.description)}</p>
+      </div>
+      <div class="grid-3 compact-metrics">
+        ${smallMetric('综合分', formatScore(feature.qualityAverage))}
+        ${smallMetric('样本数', feature.responseCount)}
+        ${smallMetric('体验', formatScore(feature.usabilityAverage))}
+      </div>
+      <div class="repeat-item">
+        <h3>专属问题得分</h3>
+        ${renderQuestionSummaries(feature.questionSummaries)}
       </div>
       <div class="repeat-item">
         <h3>接触情况</h3>
@@ -305,6 +334,7 @@ function renderEmpty() {
     metric('优先复盘', '-', '等待数据'),
   ].join('');
   healthTable.innerHTML = `<tr><td colspan="9"><span class="empty">暂无数据。</span></td></tr>`;
+  problemTable.innerHTML = `<tr><td colspan="6"><span class="empty">暂无数据。</span></td></tr>`;
   featureDetail.innerHTML = `<span class="empty">暂无明细。</span>`;
   sourceStats.innerHTML = '';
   snapshotTable.innerHTML = `<tr><td colspan="6"><span class="empty">暂无提交快照。</span></td></tr>`;
@@ -348,6 +378,7 @@ function renderMiniList(items) {
 }
 
 function renderTextList(items) {
+  if (!items || !items.length) return '<span class="empty">暂无</span>';
   return `
     <ul class="mini-list">
       ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}

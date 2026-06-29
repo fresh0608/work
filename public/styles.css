@@ -1314,6 +1314,10 @@ table {
   border-collapse: collapse;
 }
 
+.problem-table {
+  min-width: 1180px;
+}
+
 th,
 td {
   padding: 12px 14px;
@@ -1377,6 +1381,25 @@ th {
 
 .mini-list li {
   color: var(--muted);
+}
+
+.problem-table .mini-list {
+  gap: 7px;
+}
+
+.problem-table .mini-list li,
+.problem-comments .mini-list li {
+  color: var(--text);
+  line-height: 1.65;
+}
+
+.problem-table td:nth-child(5),
+.problem-table td:nth-child(6) {
+  min-width: 220px;
+}
+
+.compact-metrics {
+  grid-template-columns: 1fr;
 }
 
 .snapshot-detail {

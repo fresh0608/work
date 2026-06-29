@@ -56,8 +56,30 @@
 
       <section class="section">
         <div class="section-header">
-          <h2>功能设计质量</h2>
+          <h2>问题结果明细</h2>
           <p id="adminStatus">正在加载...</p>
+        </div>
+        <div class="table-wrap">
+          <table class="problem-table">
+            <thead>
+              <tr>
+                <th>功能</th>
+                <th>样本</th>
+                <th>最大问题分布</th>
+                <th>想改点分布</th>
+                <th>最大问题说明</th>
+                <th>想改说明</th>
+              </tr>
+            </thead>
+            <tbody id="problemTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <h2>PM 能力参考</h2>
+          <p>由问题得分侧面推断，仅作为辅助参考，重点仍看具体问题和场景。</p>
         </div>
         <div class="table-wrap">
           <table>

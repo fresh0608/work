@@ -342,7 +342,14 @@ function renderStepControls(featureName) {
   const previousFeature = getAdjacentFeature(featureName, -1);
   const nextFeature = getAdjacentFeature(featureName, 1);
   const previousDisabled = stepIndex === 0 && !previousFeature;
-  const primaryLabel = stepIndex === WORKSPACE_STEPS.length - 1 ? (nextFeature ? '下一个功能' : '写补充说明') : '下一步';
+  const primaryLabel =
+    stepIndex === WORKSPACE_STEPS.length - 1
+      ? nextFeature
+        ? '下一个功能'
+        : allSelectedEvaluationsComplete()
+          ? '写补充说明'
+          : '去补未完成项'
+      : '下一步';
   return `
     <div class="step-controls">
       <button class="button ghost-button" type="button" data-action="step-prev" data-feature="${escapeAttr(featureName)}"${previousDisabled ? ' disabled' : ''}>上一步</button>
@@ -547,13 +554,19 @@ function moveStep(featureName, direction) {
 
   const nextIncomplete = getSelectedFeatures().find((item) => !isEvaluationComplete(ensureEvaluation(item.name)));
   if (nextIncomplete) {
-    state.activeFeature = nextIncomplete.name;
-    setActiveStep(nextIncomplete.name, getFirstIncompleteStep(ensureEvaluation(nextIncomplete.name)));
-    renderEvaluationWorkspace();
-    const firstMissing = getEvaluationMissingItems(nextIncomplete, ensureEvaluation(nextIncomplete.name))[0];
-    showErrors([`${nextIncomplete.name} 还缺：${firstMissing?.label || '必填项'}。补完后才会显示补充说明和提交按钮。`]);
-    focusFirstMissingField(firstMissing);
+    goToIncompleteFeature(nextIncomplete);
   }
+}
+
+function goToIncompleteFeature(feature) {
+  const evaluation = ensureEvaluation(feature.name);
+  state.activeFeature = feature.name;
+  setActiveStep(feature.name, getFirstIncompleteStep(evaluation));
+  updateSelectedCount();
+  renderEvaluationWorkspace();
+  const firstMissing = getEvaluationMissingItems(feature, evaluation)[0];
+  showErrors([`${feature.name} 还缺：${firstMissing?.label || '必填项'}。补完后才会显示补充说明和提交按钮。`]);
+  focusFirstMissingField(firstMissing);
 }
 
 function getAdjacentFeature(featureName, direction) {
@@ -780,7 +793,12 @@ async function handleSubmit(event) {
     const payload = buildPayload();
     const errors = validatePayload(payload);
     if (errors.length) {
-      showErrors(errors);
+      const nextIncomplete = getSelectedFeatures().find((item) => !isEvaluationComplete(ensureEvaluation(item.name)));
+      if (nextIncomplete) {
+        goToIncompleteFeature(nextIncomplete);
+      } else {
+        showErrors(errors);
+      }
       return;
     }
 
