@@ -269,9 +269,11 @@ assert.equal(adminHtml.includes('问题结果明细'), true);
 assert.equal(adminHtml.includes('PM 能力参考'), true);
 assert.equal(adminHtml.includes('adminLoginForm'), true);
 assert.equal(adminHtml.includes('exportButton'), true);
+assert.equal(adminHtml.includes('exportPersonButton'), true);
 assert.equal(adminHtml.includes('admin123'), false);
 const adminJs = await readFile(new URL('../public/admin.js', import.meta.url), 'utf8');
 assert.equal(adminJs.includes('function exportResponses'), true);
+assert.equal(adminJs.includes('function exportPersonResults'), true);
 assert.equal(adminJs.includes('function renderProblemTable'), true);
 assert.equal(adminJs.includes('主要问题分布'), true);
 
@@ -316,6 +318,11 @@ try {
     body: JSON.stringify(sampleResponse),
   });
   assert.equal(postResult.status, 201);
+  const backupRaw = await readFile(join(tempDir, 'response-backups.jsonl'), 'utf8');
+  const backupRows = backupRaw.trim().split('\n').map((line) => JSON.parse(line));
+  assert.equal(backupRows.length, 1);
+  assert.equal(backupRows[0].type, 'response_submitted');
+  assert.equal(backupRows[0].response.profile.role, '私域运营');
 
   const summaryResult = await fetch(`${baseUrl}/api/summary`);
   assert.equal(summaryResult.status, 401);
@@ -339,6 +346,18 @@ try {
   assert.equal(liveSummary.submissionStats.uniqueIpCount, 1);
   assert.equal(liveSummary.submissions[0].ip, '198.51.100.22');
   assert.equal(liveSummary.submissions[0].browser, 'Edge');
+
+  const csvResult = await fetch(`${baseUrl}/api/exports/submissions.csv`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(csvResult.status, 200);
+  assert.equal(csvResult.headers.get('content-type').includes('text/csv'), true);
+  const csv = await csvResult.text();
+  assert.equal(csv.includes('提交时间,角色,IP,设备,浏览器,评价序号,功能,使用感受题目与选择,最大问题,最大问题说明'), true);
+  assert.equal(csv.includes('私域运营'), true);
+  assert.equal(csv.includes('朋友圈私域运营功能'), true);
+  assert.equal(csv.includes('动态策略组'), true);
+  assert.equal(csv.includes('朋友圈互动闭环'), true);
 
   await new Promise((resolve) => server.close(resolve));
 } finally {

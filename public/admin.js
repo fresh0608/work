@@ -8,6 +8,7 @@ const sourceStats = document.getElementById('sourceStats');
 const snapshotTable = document.getElementById('snapshotTable');
 const refreshButton = document.getElementById('refreshButton');
 const exportButton = document.getElementById('exportButton');
+const exportPersonButton = document.getElementById('exportPersonButton');
 const clearButton = document.getElementById('clearButton');
 const adminLogin = document.getElementById('adminLogin');
 const adminDashboard = document.getElementById('adminDashboard');
@@ -28,6 +29,7 @@ const PM_DIMENSION_LABELS = {
 
 refreshButton.addEventListener('click', loadSummary);
 exportButton.addEventListener('click', exportResponses);
+exportPersonButton.addEventListener('click', exportPersonResults);
 clearButton.addEventListener('click', clearData);
 featureSelect.addEventListener('change', () => renderFeatureDetail(featureSelect.value));
 adminLoginForm.addEventListener('submit', handleLogin);
@@ -107,15 +109,42 @@ async function clearData() {
 async function exportResponses() {
   const responses = await fetchJson('/api/responses');
   const blob = new Blob([`${JSON.stringify(responses, null, 2)}\n`], { type: 'application/json' });
+  downloadBlob(blob, `operator-survey-responses-${timestampForFile()}.json`);
+}
+
+async function exportPersonResults() {
+  try {
+    const response = await fetch('/api/exports/submissions.csv');
+    if (!response.ok) {
+      let message = response.statusText;
+      try {
+        const data = await response.json();
+        message = data.errors ? data.errors.join('，') : message;
+      } catch {
+        // CSV endpoint normally returns JSON only on errors.
+      }
+      throw new Error(message);
+    }
+    downloadBlob(await response.blob(), `operator-survey-person-results-${timestampForFile()}.csv`);
+    adminStatus.textContent = '每人填写结果已导出';
+  } catch (error) {
+    adminStatus.textContent = `导出失败：${error.message}`;
+  }
+}
+
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   link.href = url;
-  link.download = `operator-survey-responses-${stamp}.json`;
+  link.download = filename;
   document.body.append(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function timestampForFile() {
+  return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
 function renderSummary(summary) {

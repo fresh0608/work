@@ -1,6 +1,6 @@
 import { createServer as createHttpServer } from 'node:http';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { extname, join, normalize } from 'node:path';
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, extname, join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 
@@ -10,6 +10,10 @@ const DEFAULT_STORE_PATH =
   typeof process !== 'undefined' && process.env?.DATA_FILE
     ? process.env.DATA_FILE
     : join(APP_ROOT, 'data', 'responses.json');
+const DEFAULT_BACKUP_PATH =
+  typeof process !== 'undefined' && process.env?.BACKUP_FILE
+    ? process.env.BACKUP_FILE
+    : join(APP_ROOT, 'data', 'response-backups.jsonl');
 const DATABASE_URL =
   typeof process !== 'undefined' && process.env?.DATABASE_URL ? process.env.DATABASE_URL : '';
 const ADMIN_PASSWORD =
@@ -359,11 +363,33 @@ export async function appendResponse(response, storePath = DEFAULT_STORE_PATH) {
   return response;
 }
 
-export function createFileResponseStore(storePath = DEFAULT_STORE_PATH) {
+export async function appendResponseBackup(response, backupPath = DEFAULT_BACKUP_PATH) {
+  await mkdir(dirname(backupPath), { recursive: true });
+  await appendFile(
+    backupPath,
+    `${JSON.stringify({
+      type: 'response_submitted',
+      backedUpAt: new Date().toISOString(),
+      response,
+    })}\n`,
+    'utf8',
+  );
+}
+
+function defaultBackupPathForStore(storePath = DEFAULT_STORE_PATH) {
+  if (typeof process !== 'undefined' && process.env?.BACKUP_FILE) return DEFAULT_BACKUP_PATH;
+  return join(dirname(storePath), 'response-backups.jsonl');
+}
+
+export function createFileResponseStore(storePath = DEFAULT_STORE_PATH, backupPath = defaultBackupPathForStore(storePath)) {
   return {
     read: () => readResponses(storePath),
     write: (responses) => writeResponses(responses, storePath),
-    append: (response) => appendResponse(response, storePath),
+    async append(response) {
+      const saved = await appendResponse(response, storePath);
+      await appendResponseBackup(saved, backupPath);
+      return saved;
+    },
   };
 }
 
@@ -381,13 +407,23 @@ export function createPostgresResponseStore(connectionString = DATABASE_URL) {
   async function ensureReady() {
     if (!readyPromise) {
       readyPromise = getPool().then((pool) =>
-        pool.query(`
-          CREATE TABLE IF NOT EXISTS survey_responses (
-            id text PRIMARY KEY,
-            created_at timestamptz NOT NULL,
-            payload jsonb NOT NULL
-          )
-        `),
+        Promise.all([
+          pool.query(`
+            CREATE TABLE IF NOT EXISTS survey_responses (
+              id text PRIMARY KEY,
+              created_at timestamptz NOT NULL,
+              payload jsonb NOT NULL
+            )
+          `),
+          pool.query(`
+            CREATE TABLE IF NOT EXISTS survey_response_backups (
+              backup_id bigserial PRIMARY KEY,
+              response_id text NOT NULL,
+              backed_up_at timestamptz NOT NULL DEFAULT now(),
+              payload jsonb NOT NULL
+            )
+          `),
+        ]),
       );
     }
     await readyPromise;
@@ -426,25 +462,40 @@ export function createPostgresResponseStore(connectionString = DATABASE_URL) {
     async append(response) {
       await ensureReady();
       const pool = await getPool();
-      await pool.query(
-        `INSERT INTO survey_responses (id, created_at, payload)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (id) DO UPDATE SET created_at = EXCLUDED.created_at, payload = EXCLUDED.payload`,
-        [response.id, response.createdAt, response],
-      );
-      return response;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `INSERT INTO survey_responses (id, created_at, payload)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (id) DO UPDATE SET created_at = EXCLUDED.created_at, payload = EXCLUDED.payload`,
+          [response.id, response.createdAt, response],
+        );
+        await client.query(
+          'INSERT INTO survey_response_backups (response_id, payload) VALUES ($1, $2)',
+          [response.id, { type: 'response_submitted', response }],
+        );
+        await client.query('COMMIT');
+        return response;
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
     },
   };
 }
 
-export function createDefaultResponseStore(storePath = DEFAULT_STORE_PATH) {
-  return DATABASE_URL ? createPostgresResponseStore(DATABASE_URL) : createFileResponseStore(storePath);
+export function createDefaultResponseStore(storePath = DEFAULT_STORE_PATH, backupPath = defaultBackupPathForStore(storePath)) {
+  return DATABASE_URL ? createPostgresResponseStore(DATABASE_URL) : createFileResponseStore(storePath, backupPath);
 }
 
 export function createServer({
   storePath = DEFAULT_STORE_PATH,
+  backupPath = defaultBackupPathForStore(storePath),
   publicRoot = PUBLIC_ROOT,
-  responseStore = createDefaultResponseStore(storePath),
+  responseStore = createDefaultResponseStore(storePath, backupPath),
 } = {}) {
   return createHttpServer(async (request, response) => {
     try {
@@ -496,6 +547,12 @@ export function createServer({
         if (!isAdminAuthenticated(request)) return sendUnauthorized(response);
         const responses = await responseStore.read();
         return sendJson(response, summarizeResponses(responses));
+      }
+
+      if (url.pathname === '/api/exports/submissions.csv' && request.method === 'GET') {
+        if (!isAdminAuthenticated(request)) return sendUnauthorized(response);
+        const responses = await responseStore.read();
+        return sendCsv(response, buildSubmissionCsv(responses), 'operator-survey-submissions.csv');
       }
 
       if (request.method !== 'GET') {
@@ -573,6 +630,15 @@ function sendJson(response, data, statusCode = 200) {
     'Cache-Control': 'no-store',
   });
   response.end(JSON.stringify(data));
+}
+
+function sendCsv(response, content, filename) {
+  response.writeHead(200, {
+    'Content-Type': 'text/csv; charset=utf-8',
+    'Content-Disposition': `attachment; filename="${filename}"`,
+    'Cache-Control': 'no-store',
+  });
+  response.end(content);
 }
 
 async function serveStatic(pathname, response, publicRoot) {
@@ -725,6 +791,90 @@ function summarizeSubmissionRows(responses) {
         overall: response.overall,
       },
     }));
+}
+
+export function buildSubmissionCsv(responses) {
+  const headers = [
+    '提交时间',
+    '角色',
+    'IP',
+    '设备',
+    '浏览器',
+    '评价序号',
+    '功能',
+    '使用感受题目与选择',
+    '最大问题',
+    '最大问题说明',
+    '喜欢点',
+    '喜欢说明',
+    '想改点',
+    '想改说明',
+    '整体喜欢',
+    '整体不顺手',
+    '最希望先改',
+    '提交ID',
+    'UserAgent',
+  ];
+
+  const rows = (responses || []).flatMap((response) => {
+    const evaluations = Array.isArray(response.evaluations) ? response.evaluations : [];
+    if (!evaluations.length) return [submissionCsvRow(response, null, 0)];
+    return evaluations.map((evaluation, index) => submissionCsvRow(response, evaluation, index + 1));
+  });
+
+  return `\uFEFF${[headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\n')}\n`;
+}
+
+function submissionCsvRow(response, evaluation, index) {
+  const feature = evaluation ? findFeature(evaluation.feature) : null;
+  const answers = feature
+    ? feature.questions
+        .map((question) => `${question.text}：${scoreLabel(evaluation.answers?.[question.id])}`)
+        .join('\n')
+    : '';
+  return [
+    formatCsvDate(response.createdAt),
+    response.profile?.role || '',
+    response.requestMeta?.ip || '',
+    response.requestMeta?.device || '',
+    response.requestMeta?.browser || '',
+    index || '',
+    evaluation?.feature || '',
+    answers,
+    evaluation?.mainProblem || '',
+    evaluation?.problemDetail || '',
+    feedbackPoints(evaluation?.liked).join('；'),
+    feedbackDetail(evaluation?.liked),
+    feedbackPoints(evaluation?.disliked).join('；'),
+    feedbackDetail(evaluation?.disliked),
+    response.overall?.favoritePoints || '',
+    response.overall?.dislikedPoints || '',
+    response.overall?.nextImprove || '',
+    response.id || '',
+    response.requestMeta?.userAgent || '',
+  ];
+}
+
+function scoreLabel(value) {
+  const labels = {
+    1: '很难用',
+    2: '不太顺',
+    3: '一般',
+    4: '比较顺',
+    5: '很好用',
+  };
+  return labels[value] ? `${value} ${labels[value]}` : '';
+}
+
+function formatCsvDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('zh-CN', { hour12: false });
+}
+
+function csvCell(value) {
+  const text = String(value ?? '');
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 function getRequestMeta(request) {

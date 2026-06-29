@@ -8,3 +8,4 @@ bin/
 gh_*.zip
 LICENSE
 render-*-backup.json
+data/response-backups.jsonl
