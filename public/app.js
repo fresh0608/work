@@ -152,7 +152,7 @@ function renderEvaluationWorkspace() {
   const feature = selectedFeatures.find((item) => item.name === state.activeFeature) || selectedFeatures[0];
   const evaluation = ensureEvaluation(feature.name);
   const activeStep = getActiveStep(feature.name);
-  const currentMissing = getEvaluationMissingLabels(feature, evaluation);
+  const currentMissing = getEvaluationMissingItems(feature, evaluation);
   const completedCount = selectedFeatures.filter((item) => isEvaluationComplete(ensureEvaluation(item.name))).length;
   workspace.hidden = false;
   workspace.innerHTML = `
@@ -183,8 +183,8 @@ function renderEvaluationWorkspace() {
             <p>${escapeHtml(feature.description)}</p>
           </div>
           <div class="feature-context-side">
-            <span class="feature-complete-pill${currentMissing.length ? '' : ' done'}">
-              ${currentMissing.length ? `还差 ${currentMissing.length} 项` : '本功能已完成'}
+            <span class="feature-complete-pill${currentMissing.length ? '' : ' done'}" title="${escapeAttr(currentMissing.map((item) => item.label).join('、'))}">
+              ${currentMissing.length ? `还差：${escapeHtml(currentMissing[0].label)}` : '本功能已完成'}
             </span>
             <button class="button small ghost-button" type="button" data-action="toggle" data-feature="${escapeAttr(feature.name)}">取消评价</button>
           </div>
@@ -227,7 +227,7 @@ function renderCompletionNotice(selectedFeatures) {
 }
 
 function renderCurrentMissing(feature, evaluation) {
-  const missing = getEvaluationMissingLabels(feature, evaluation);
+  const missing = getEvaluationMissingItems(feature, evaluation);
   if (!missing.length) {
     return `
       <div class="current-status done">
@@ -240,7 +240,7 @@ function renderCurrentMissing(feature, evaluation) {
     <div class="current-status">
       <strong>完成这些项后，本功能才算填完</strong>
       <div class="missing-list">
-        ${missing.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}
+        ${missing.map((item) => `<span>${escapeHtml(item.label)}</span>`).join('')}
       </div>
     </div>
   `;
@@ -251,7 +251,7 @@ function renderScoreQuestion(feature, question, evaluation) {
   return `
     <div class="score-question" data-score-question="${question.id}">
       <div class="score-copy">
-        <span class="question-kicker">请按实际感受选择</span>
+        <span class="question-kicker">请按实际感受选择 <b class="required-star">*</b></span>
         <div class="label">${escapeHtml(question.text)}</div>
       </div>
       <div class="score-row">
@@ -301,14 +301,15 @@ function renderActiveStep(feature, evaluation) {
   if (step.id === 'problem') {
     return `
       ${renderStepIntro(step)}
+      <div class="field-label-line">选择最影响使用的一类问题 <b class="required-star">*</b></div>
       <div class="choice-cloud">
         ${feature.problemOptions
           .map((problem) => radioChip(`problem-${feature.name}`, problem, evaluation.mainProblem === problem))
           .join('')}
       </div>
       <label class="detail-field problem-detail-block">
-        <span>为什么这是最大问题？</span>
-        <textarea data-problem-detail placeholder="例如：只看到分配结果，看不到原因，遇到异常时不知道要不要人工处理。">${escapeHtml(evaluation.problemDetail)}</textarea>
+        <span>为什么这是最大问题？ <b class="required-star">*</b></span>
+        <textarea data-problem-detail data-required-field="problemDetail" placeholder="例如：只看到分配结果，看不到原因，遇到异常时不知道要不要人工处理。">${escapeHtml(evaluation.problemDetail)}</textarea>
       </label>
     `;
   }
@@ -357,19 +358,22 @@ function renderFeedbackSection(feature, evaluation, kind, title, hint, placehold
   return `
     <div class="feedback-flow">
       <div class="feedback-head">
-        <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(hint)}</span>
+        <strong>${escapeHtml(title)} <b class="required-star">*</b></strong>
+        <span>选一个快捷项，或在下面自己写一个；不用两边都填</span>
       </div>
       <div class="choice-cloud">
         ${options.map((option) => checkboxChip(feature.name, kind, option, feedback.points.includes(option))).join('')}
       </div>
       <div class="custom-point-row">
         <label>
-          <span>自定义一个点</span>
-          <input type="text" data-feedback-custom="${kind}" maxlength="24" value="${escapeAttr(feedback.customPoint)}" placeholder="没有合适选项，可以自己写">
+          <span>自定义一个点 <small>选项不合适时再写</small></span>
+          <input type="text" data-feedback-custom="${kind}" maxlength="24" value="${escapeAttr(feedback.customPoint)}" placeholder="已选上方选项时，这里可以不填">
         </label>
       </div>
-      <textarea data-feedback-detail="${kind}" placeholder="${escapeAttr(placeholder)}">${escapeHtml(feedback.detail)}</textarea>
+      <label class="detail-field feedback-detail-field">
+        <span>具体说明 <b class="required-star">*</b></span>
+        <textarea data-feedback-detail="${kind}" placeholder="${escapeAttr(placeholder)}">${escapeHtml(feedback.detail)}</textarea>
+      </label>
     </div>
   `;
 }
@@ -506,6 +510,17 @@ function moveStep(featureName, direction) {
   const stepIndex = WORKSPACE_STEPS.findIndex((item) => item.id === step.id);
   const nextIndex = stepIndex + direction;
 
+  if (direction > 0) {
+    const evaluation = ensureEvaluation(featureName);
+    const missingInCurrentStep = getStepMissingItems(evaluation, step.id);
+    if (missingInCurrentStep.length) {
+      renderEvaluationWorkspace();
+      showInlineMissing(missingInCurrentStep[0].label);
+      focusFirstMissingField(missingInCurrentStep[0]);
+      return;
+    }
+  }
+
   if (nextIndex >= 0 && nextIndex < WORKSPACE_STEPS.length) {
     setActiveStep(featureName, WORKSPACE_STEPS[nextIndex].id);
     renderEvaluationWorkspace();
@@ -535,7 +550,9 @@ function moveStep(featureName, direction) {
     state.activeFeature = nextIncomplete.name;
     setActiveStep(nextIncomplete.name, getFirstIncompleteStep(ensureEvaluation(nextIncomplete.name)));
     renderEvaluationWorkspace();
-    showErrors([`${nextIncomplete.name} 还有必填项未完成，完成后才会显示补充说明和提交按钮。`]);
+    const firstMissing = getEvaluationMissingItems(nextIncomplete, ensureEvaluation(nextIncomplete.name))[0];
+    showErrors([`${nextIncomplete.name} 还缺：${firstMissing?.label || '必填项'}。补完后才会显示补充说明和提交按钮。`]);
+    focusFirstMissingField(firstMissing);
   }
 }
 
@@ -672,16 +689,70 @@ function getFirstIncompleteStep(evaluation) {
 }
 
 function getEvaluationMissingLabels(feature, evaluation) {
+  return getEvaluationMissingItems(feature, evaluation).map((item) => item.label);
+}
+
+function getEvaluationMissingItems(feature, evaluation) {
   const missing = [];
   const unansweredCount = feature.questions.filter(
     (question) => !Number.isInteger(evaluation.answers?.[question.id]),
   ).length;
-  if (unansweredCount) missing.push(`使用感受 ${unansweredCount} 题`);
-  if (!evaluation.mainProblem) missing.push('最大问题');
-  if (!String(evaluation.problemDetail || '').trim()) missing.push('问题场景说明');
-  if (!hasPointFeedback(evaluation.liked)) missing.push('喜欢的点和说明');
-  if (!hasPointFeedback(evaluation.disliked)) missing.push('想改的点和说明');
+  if (unansweredCount) missing.push({ label: `使用感受 ${unansweredCount} 题`, step: 'score', field: 'score' });
+  if (!evaluation.mainProblem) missing.push({ label: '最大问题选项', step: 'problem', field: 'problem' });
+  if (!String(evaluation.problemDetail || '').trim()) {
+    missing.push({ label: '最大问题的具体说明', step: 'problem', field: 'problemDetail' });
+  }
+  if (!feedbackPointsComplete(evaluation.liked)) {
+    missing.push({ label: '喜欢点至少选一个', step: 'liked', field: 'likedPoint' });
+  }
+  if (!String(evaluation.liked?.detail || '').trim()) {
+    missing.push({ label: '喜欢点的具体说明', step: 'liked', field: 'likedDetail' });
+  }
+  if (!feedbackPointsComplete(evaluation.disliked)) {
+    missing.push({ label: '想改点至少选一个', step: 'disliked', field: 'dislikedPoint' });
+  }
+  if (!String(evaluation.disliked?.detail || '').trim()) {
+    missing.push({ label: '想改点的具体说明', step: 'disliked', field: 'dislikedDetail' });
+  }
   return missing;
+}
+
+function getStepMissingItems(evaluation, stepId) {
+  const feature = state.config?.features.find((item) => item.name === evaluation.feature);
+  if (!feature) return [];
+  return getEvaluationMissingItems(feature, evaluation).filter((item) => item.step === stepId);
+}
+
+function feedbackPointsComplete(feedback) {
+  return uniquePoints([...(feedback?.points || []), feedback?.customPoint]).length > 0;
+}
+
+function showInlineMissing(label) {
+  const status = document.querySelector('.current-status');
+  if (status) {
+    status.classList.add('attention');
+    const title = status.querySelector('strong');
+    if (title) title.textContent = `还缺：${label}`;
+  }
+}
+
+function focusFirstMissingField(item) {
+  if (!item) return;
+  const selectors = {
+    score: '[data-action="score"]:not(.active)',
+    problem: '.choice-cloud input[type="radio"]',
+    problemDetail: '[data-problem-detail]',
+    likedPoint: '[data-feedback-kind="liked"], [data-feedback-custom="liked"]',
+    likedDetail: '[data-feedback-detail="liked"]',
+    dislikedPoint: '[data-feedback-kind="disliked"], [data-feedback-custom="disliked"]',
+    dislikedDetail: '[data-feedback-detail="disliked"]',
+  };
+  const target = document.querySelector(selectors[item.field]);
+  if (!target) return;
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  target.focus({ preventScroll: true });
+  target.classList.add('field-attention');
+  window.setTimeout(() => target.classList.remove('field-attention'), 1400);
 }
 
 function ensureEvaluation(feature) {
