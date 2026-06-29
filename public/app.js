@@ -9,15 +9,15 @@ const state = {
 const WORKSPACE_STEPS = [
   {
     id: 'score',
-    label: '任务判断',
-    title: '先判断它能不能帮你完成运营任务',
-    hint: '不用打分，直接选择最接近你实际感受的判断。',
+    label: '使用感受',
+    title: '先选择实际使用感受',
+    hint: '不用打分，直接选择最接近你实际感受的一项。',
   },
   {
     id: 'problem',
     label: '最大问题',
     title: '先选最影响使用的一类问题',
-    hint: '选完后请补充一个具体场景，方便判断问题来自业务理解、规则边界还是体验设计。',
+    hint: '选完后请补充一个具体场景，说明它在哪一步影响了你。',
   },
   {
     id: 'liked',
@@ -42,11 +42,11 @@ const overallSection = document.getElementById('overallSection');
 const submitArea = document.getElementById('submitArea');
 
 const RESPONSE_SCALE = [
-  { value: 1, label: '完全不能', short: '不能' },
-  { value: 2, label: '不太能', short: '较弱' },
-  { value: 3, label: '说不准', short: '一般' },
-  { value: 4, label: '基本能', short: '较好' },
-  { value: 5, label: '完全能', short: '很好' },
+  { value: 1, label: '很难用', short: '很难用' },
+  { value: 2, label: '不太顺', short: '不太顺' },
+  { value: 3, label: '一般', short: '一般' },
+  { value: 4, label: '比较顺', short: '比较顺' },
+  { value: 5, label: '很好用', short: '很好用' },
 ];
 
 init();
@@ -70,7 +70,7 @@ function renderFeatureGroups() {
     <div class="survey-flow-strip" aria-label="填写进度">
       <span class="flow-step active">1 选择熟悉功能</span>
       <span class="flow-step" id="detailFlowStep">2 逐个详细评价</span>
-      <span class="flow-step">3 写整体反馈</span>
+      <span class="flow-step" id="overallFlowStep">3 补充说明</span>
     </div>
     <div class="selection-banner">
       <div>
@@ -88,7 +88,10 @@ function renderFeatureGroups() {
         .map(([groupName, features]) => {
           return `
             <div class="repeat-item feature-group">
-              <h3>${escapeHtml(groupName)}</h3>
+              <div class="feature-group-head">
+                <h3>${escapeHtml(groupName)}</h3>
+                <span>${features.length} 个功能</span>
+              </div>
               <div class="feature-list">
                 ${features.map(renderFeatureCard).join('')}
               </div>
@@ -113,7 +116,7 @@ function renderFeatureCard(feature) {
     <article class="feature-row feature-card" data-feature-card="${escapeAttr(feature.name)}">
       <div class="feature-title">
         <strong>${escapeHtml(feature.name)}</strong>
-        <span>${escapeHtml(feature.description)}</span>
+        <span class="feature-description">${escapeHtml(feature.description)}</span>
       </div>
       <div class="feature-actions">
         <button class="button small select-feature-button" type="button" data-action="toggle" data-feature="${escapeAttr(feature.name)}">
@@ -149,42 +152,97 @@ function renderEvaluationWorkspace() {
   const feature = selectedFeatures.find((item) => item.name === state.activeFeature) || selectedFeatures[0];
   const evaluation = ensureEvaluation(feature.name);
   const activeStep = getActiveStep(feature.name);
+  const currentMissing = getEvaluationMissingLabels(feature, evaluation);
+  const completedCount = selectedFeatures.filter((item) => isEvaluationComplete(ensureEvaluation(item.name))).length;
   workspace.hidden = false;
   workspace.innerHTML = `
     <div class="workspace-head">
       <div>
-        <h3>填写已选功能</h3>
-        <p>每次只处理一个功能、一个步骤；切换功能不会丢失已填写内容。还想补选功能，可以回到上面的功能清单继续点选。</p>
+        <span class="workspace-label">第 2 步</span>
+        <h3>逐个评价已选功能</h3>
+        <p>左侧切换功能，右侧填写当前功能。全部必填项完成后，才会出现补充说明和提交按钮。</p>
       </div>
-      <span class="workspace-count">${selectedFeatures.length} 个功能</span>
+      <span class="workspace-count">已完成 ${completedCount}/${selectedFeatures.length}</span>
     </div>
-    <div class="feature-tabs" role="tablist" aria-label="已选功能">
-      ${selectedFeatures.map((item) => renderFeatureTab(item)).join('')}
-    </div>
-    <article class="step-shell" data-evaluation-panel="${escapeAttr(feature.name)}">
-      <div class="step-feature-head">
-        <div>
-          <span class="panel-kicker">${escapeHtml(feature.group)}</span>
-          <h3>${escapeHtml(feature.name)}</h3>
-          <p>${escapeHtml(feature.description)}</p>
+    <div class="evaluation-layout">
+      <aside class="feature-rail" aria-label="已选功能列表">
+        <div class="rail-head">
+          <strong>已选功能</strong>
+          <span>${selectedFeatures.length} 个</span>
         </div>
-        <button class="button small ghost-button" type="button" data-action="toggle" data-feature="${escapeAttr(feature.name)}">取消评价</button>
-      </div>
-      ${renderStepNav(feature.name)}
-      <div class="step-body" data-step-panel="${escapeAttr(activeStep.id)}">
-        ${renderActiveStep(feature, evaluation)}
-      </div>
-      ${renderStepControls(feature.name)}
-    </article>
+        <div class="feature-tabs" role="tablist" aria-label="已选功能">
+          ${selectedFeatures.map((item) => renderFeatureTab(item)).join('')}
+        </div>
+        ${renderCompletionNotice(selectedFeatures)}
+      </aside>
+      <article class="step-shell" data-evaluation-panel="${escapeAttr(feature.name)}">
+        <div class="step-feature-head">
+          <div class="feature-context">
+            <span class="feature-group-label">${escapeHtml(feature.group)}</span>
+            <h3>${escapeHtml(feature.name)}</h3>
+            <p>${escapeHtml(feature.description)}</p>
+          </div>
+          <div class="feature-context-side">
+            <span class="feature-complete-pill${currentMissing.length ? '' : ' done'}">
+              ${currentMissing.length ? `还差 ${currentMissing.length} 项` : '本功能已完成'}
+            </span>
+            <button class="button small ghost-button" type="button" data-action="toggle" data-feature="${escapeAttr(feature.name)}">取消评价</button>
+          </div>
+        </div>
+        ${renderCurrentMissing(feature, evaluation)}
+        ${renderStepNav(feature.name)}
+        <div class="step-body" data-step-panel="${escapeAttr(activeStep.id)}">
+          ${renderActiveStep(feature, evaluation)}
+        </div>
+        ${renderStepControls(feature.name)}
+      </article>
+    </div>
   `;
 }
 
 function renderFeatureTab(feature) {
   const active = feature.name === state.activeFeature;
+  const complete = isEvaluationComplete(ensureEvaluation(feature.name));
   return `
-    <button class="feature-tab${active ? ' active' : ''}" type="button" role="tab" aria-selected="${active}" data-action="activate" data-feature="${escapeAttr(feature.name)}">
-      ${escapeHtml(feature.name)}
+    <button class="feature-tab${active ? ' active' : ''}${complete ? ' complete' : ''}" type="button" role="tab" aria-selected="${active}" data-action="activate" data-feature="${escapeAttr(feature.name)}">
+      <span class="tab-copy">
+        <strong>${escapeHtml(feature.name)}</strong>
+        <small>${escapeHtml(feature.group)}</small>
+      </span>
+      <span class="tab-status" data-tab-status>${complete ? '已完成' : '未完成'}</span>
     </button>
+  `;
+}
+
+function renderCompletionNotice(selectedFeatures) {
+  const completed = selectedFeatures.filter((feature) => isEvaluationComplete(ensureEvaluation(feature.name))).length;
+  const total = selectedFeatures.length;
+  const ready = total > 0 && completed === total;
+  return `
+    <div class="completion-notice${ready ? ' ready' : ''}">
+      <strong>${ready ? '已完成所有功能评价' : `已完成 ${completed}/${total} 个功能评价`}</strong>
+      <p>${ready ? '现在可以填写补充说明并提交。' : '每个已选功能的所有必填项完成后，才会显示补充说明和提交按钮。'}</p>
+    </div>
+  `;
+}
+
+function renderCurrentMissing(feature, evaluation) {
+  const missing = getEvaluationMissingLabels(feature, evaluation);
+  if (!missing.length) {
+    return `
+      <div class="current-status done">
+        <strong>这个功能已填完整</strong>
+        <span>可以继续填写其他已选功能；全部完成后会出现补充说明和提交按钮。</span>
+      </div>
+    `;
+  }
+  return `
+    <div class="current-status">
+      <strong>完成这些项后，本功能才算填完</strong>
+      <div class="missing-list">
+        ${missing.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}
+      </div>
+    </div>
   `;
 }
 
@@ -193,7 +251,7 @@ function renderScoreQuestion(feature, question, evaluation) {
   return `
     <div class="score-question" data-score-question="${question.id}">
       <div class="score-copy">
-        <span class="question-kicker">判断项</span>
+        <span class="question-kicker">请按实际感受选择</span>
         <div class="label">${escapeHtml(question.text)}</div>
       </div>
       <div class="score-row">
@@ -250,7 +308,7 @@ function renderActiveStep(feature, evaluation) {
       </div>
       <label class="detail-field problem-detail-block">
         <span>为什么这是最大问题？</span>
-        <textarea data-problem-detail placeholder="例如：规则只告诉我分配结果，但没有说明为什么这样分。我无法判断这是不是符合实际业务优先级，也不知道异常时该不该人工介入。">${escapeHtml(evaluation.problemDetail)}</textarea>
+        <textarea data-problem-detail placeholder="例如：只看到分配结果，看不到原因，遇到异常时不知道要不要人工处理。">${escapeHtml(evaluation.problemDetail)}</textarea>
       </label>
     `;
   }
@@ -258,7 +316,7 @@ function renderActiveStep(feature, evaluation) {
   if (step.id === 'liked') {
     return `
       ${renderStepIntro(step)}
-      ${renderFeedbackSection(feature, evaluation, 'liked', '喜欢的点', '可选快捷项，也可以自己写', '具体说一个场景：它在哪个运营判断里帮到了你？')}
+      ${renderFeedbackSection(feature, evaluation, 'liked', '喜欢的点', '可选快捷项，也可以自己写', '具体说一个场景：什么时候让你觉得它好用？')}
     `;
   }
 
@@ -283,7 +341,7 @@ function renderStepControls(featureName) {
   const previousFeature = getAdjacentFeature(featureName, -1);
   const nextFeature = getAdjacentFeature(featureName, 1);
   const previousDisabled = stepIndex === 0 && !previousFeature;
-  const primaryLabel = stepIndex === WORKSPACE_STEPS.length - 1 ? (nextFeature ? '下一个功能' : '写整体反馈') : '下一步';
+  const primaryLabel = stepIndex === WORKSPACE_STEPS.length - 1 ? (nextFeature ? '下一个功能' : '写补充说明') : '下一步';
   return `
     <div class="step-controls">
       <button class="button ghost-button" type="button" data-action="step-prev" data-feature="${escapeAttr(featureName)}"${previousDisabled ? ' disabled' : ''}>上一步</button>
@@ -358,6 +416,7 @@ function bindEvents() {
 
     if (input.name === `problem-${feature}`) {
       evaluation.mainProblem = input.value;
+      updateSelectedCount();
       return;
     }
 
@@ -372,6 +431,7 @@ function bindEvents() {
       const panel = problemDetail.closest('[data-evaluation-panel]');
       const evaluation = ensureEvaluation(panel.dataset.evaluationPanel);
       evaluation.problemDetail = problemDetail.value;
+      updateSelectedCount();
       return;
     }
 
@@ -380,6 +440,7 @@ function bindEvents() {
       const panel = customInput.closest('[data-evaluation-panel]');
       const evaluation = ensureEvaluation(panel.dataset.evaluationPanel);
       evaluation[customInput.dataset.feedbackCustom].customPoint = customInput.value;
+      updateSelectedCount();
       return;
     }
 
@@ -388,6 +449,7 @@ function bindEvents() {
     const panel = textarea.closest('[data-evaluation-panel]');
     const evaluation = ensureEvaluation(panel.dataset.evaluationPanel);
     evaluation[textarea.dataset.feedbackDetail].detail = textarea.value;
+    updateSelectedCount();
   });
 
   form.addEventListener('submit', handleSubmit);
@@ -426,8 +488,6 @@ function startEvaluation() {
   if (!state.activeFeature) state.activeFeature = getSelectedFeatures()[0]?.name || '';
   updateSelectedCount();
   renderEvaluationWorkspace();
-  overallSection.hidden = false;
-  submitArea.hidden = false;
   document.getElementById('evaluationWorkspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -463,8 +523,20 @@ function moveStep(featureName, direction) {
     return;
   }
 
-  document.getElementById('favoritePoints')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  document.getElementById('favoritePoints')?.focus({ preventScroll: true });
+  if (allSelectedEvaluationsComplete()) {
+    updateSelectedCount();
+    document.getElementById('favoritePoints')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('favoritePoints')?.focus({ preventScroll: true });
+    return;
+  }
+
+  const nextIncomplete = getSelectedFeatures().find((item) => !isEvaluationComplete(ensureEvaluation(item.name)));
+  if (nextIncomplete) {
+    state.activeFeature = nextIncomplete.name;
+    setActiveStep(nextIncomplete.name, getFirstIncompleteStep(ensureEvaluation(nextIncomplete.name)));
+    renderEvaluationWorkspace();
+    showErrors([`${nextIncomplete.name} 还有必填项未完成，完成后才会显示补充说明和提交按钮。`]);
+  }
 }
 
 function getAdjacentFeature(featureName, direction) {
@@ -490,9 +562,11 @@ function updateSelectedCount() {
   const advice = document.getElementById('selectedAdvice');
   const startButton = document.getElementById('startEvaluationButton');
   const detailStep = document.getElementById('detailFlowStep');
+  const overallStep = document.getElementById('overallFlowStep');
   const dock = document.getElementById('selectionDock');
   const dockSelectedCount = document.getElementById('dockSelectedCount');
   const count = state.evaluations.size;
+  const readyForOverall = state.evaluationStarted && count > 0 && allSelectedEvaluationsComplete();
   if (counter) counter.textContent = `已选择 ${count} 个`;
   if (startButton) {
     startButton.disabled = count === 0;
@@ -500,17 +574,41 @@ function updateSelectedCount() {
   }
   if (dock) dock.hidden = count === 0 || state.evaluationStarted;
   if (dockSelectedCount) dockSelectedCount.textContent = `已选择 ${count} 个功能`;
-  if (overallSection) overallSection.hidden = !state.evaluationStarted;
-  if (submitArea) submitArea.hidden = !state.evaluationStarted;
+  if (overallSection) overallSection.hidden = !readyForOverall;
+  if (submitArea) submitArea.hidden = !readyForOverall;
   if (detailStep) detailStep.classList.toggle('active', state.evaluationStarted);
+  if (overallStep) overallStep.classList.toggle('active', readyForOverall);
+  syncEvaluationCompletionUi();
   if (!advice) return;
   if (count === 0) {
     advice.textContent = '先把你能说出感受的功能加入清单；熟悉几个就选几个，可以全部评价。';
   } else if (count === 1) {
-    advice.textContent = '已选 1 个，可以开始；如果还有熟悉功能，再补几个会更容易看出设计差异。';
+    advice.textContent = '已选 1 个，可以开始；如果还有熟悉功能，再补几个会更容易对比使用感受。';
   } else {
     advice.textContent = `已选 ${count} 个。熟悉的都可以评价，下一步会逐个展示，不会一次性铺开。`;
   }
+}
+
+function syncEvaluationCompletionUi() {
+  const selectedFeatures = getSelectedFeatures();
+  const completed = selectedFeatures.filter((feature) => isEvaluationComplete(ensureEvaluation(feature.name))).length;
+  const total = selectedFeatures.length;
+  const ready = total > 0 && completed === total;
+  const notice = document.querySelector('.completion-notice');
+  if (notice) {
+    notice.classList.toggle('ready', ready);
+    const title = notice.querySelector('strong');
+    const copy = notice.querySelector('p');
+    if (title) title.textContent = ready ? '已完成所有功能评价' : `已完成 ${completed}/${total} 个功能评价`;
+    if (copy) copy.textContent = ready ? '现在可以填写补充说明并提交。' : '每个已选功能的所有必填项完成后，才会显示补充说明和提交按钮。';
+  }
+  document.querySelectorAll('.feature-tab[data-feature]').forEach((tab) => {
+    const evaluation = ensureEvaluation(tab.dataset.feature);
+    const complete = isEvaluationComplete(evaluation);
+    tab.classList.toggle('complete', complete);
+    const status = tab.querySelector('[data-tab-status]');
+    if (status) status.textContent = complete ? '已完成' : '未完成';
+  });
 }
 
 function updateScore(button, feature, questionId, value) {
@@ -522,6 +620,7 @@ function updateScore(button, feature, questionId, value) {
     .querySelectorAll(`[data-action="score"][data-question="${questionId}"]`)
     .forEach((item) => item.classList.remove('active'));
   button.classList.add('active');
+  updateSelectedCount();
 }
 
 function updateFeedbackPoints(panel, evaluation, input) {
@@ -537,6 +636,52 @@ function updateFeedbackPoints(panel, evaluation, input) {
   }
 
   evaluation[kind].points = selected;
+  updateSelectedCount();
+}
+
+function allSelectedEvaluationsComplete() {
+  return state.evaluations.size > 0 && [...state.evaluations.values()].every(isEvaluationComplete);
+}
+
+function isEvaluationComplete(evaluation) {
+  const feature = state.config?.features.find((item) => item.name === evaluation.feature);
+  if (!feature) return false;
+  const allScoresDone = feature.questions.every((question) => Number.isInteger(evaluation.answers?.[question.id]));
+  return (
+    allScoresDone &&
+    Boolean(evaluation.mainProblem) &&
+    Boolean(String(evaluation.problemDetail || '').trim()) &&
+    hasPointFeedback(evaluation.liked) &&
+    hasPointFeedback(evaluation.disliked)
+  );
+}
+
+function hasPointFeedback(feedback) {
+  const points = uniquePoints([...(feedback?.points || []), feedback?.customPoint]);
+  return points.length > 0 && Boolean(String(feedback?.detail || '').trim());
+}
+
+function getFirstIncompleteStep(evaluation) {
+  const feature = state.config?.features.find((item) => item.name === evaluation.feature);
+  if (!feature) return WORKSPACE_STEPS[0].id;
+  if (!feature.questions.every((question) => Number.isInteger(evaluation.answers?.[question.id]))) return 'score';
+  if (!evaluation.mainProblem || !String(evaluation.problemDetail || '').trim()) return 'problem';
+  if (!hasPointFeedback(evaluation.liked)) return 'liked';
+  if (!hasPointFeedback(evaluation.disliked)) return 'disliked';
+  return WORKSPACE_STEPS[0].id;
+}
+
+function getEvaluationMissingLabels(feature, evaluation) {
+  const missing = [];
+  const unansweredCount = feature.questions.filter(
+    (question) => !Number.isInteger(evaluation.answers?.[question.id]),
+  ).length;
+  if (unansweredCount) missing.push(`使用感受 ${unansweredCount} 题`);
+  if (!evaluation.mainProblem) missing.push('最大问题');
+  if (!String(evaluation.problemDetail || '').trim()) missing.push('问题场景说明');
+  if (!hasPointFeedback(evaluation.liked)) missing.push('喜欢的点和说明');
+  if (!hasPointFeedback(evaluation.disliked)) missing.push('想改的点和说明');
+  return missing;
 }
 
 function ensureEvaluation(feature) {

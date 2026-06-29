@@ -23,13 +23,17 @@
 
     <section class="section login-panel" id="adminLogin">
       <div class="section-header">
-        <h2>进入后台</h2>
-        <p>后台包含填写快照、IP 和设备信息，需要密码查看。</p>
+        <div>
+          <span class="section-step">管理员入口</span>
+          <h2>进入后台</h2>
+        </div>
+        <p>后台包含提交数据和来源信息，需要密码查看。</p>
       </div>
       <form class="section-body login-form" id="adminLoginForm">
         <div class="field">
           <label for="adminPassword">后台密码</label>
           <input id="adminPassword" name="password" type="password" autocomplete="current-password" placeholder="请输入后台密码" required>
+          <p class="field-hint">请输入管理员提供的后台密码。</p>
         </div>
         <button class="button primary" id="loginButton" type="submit">进入看板</button>
         <span class="status" id="loginStatus">未登录</span>

@@ -10,17 +10,20 @@
   <main class="app-shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">轻量产品调研</p>
-        <h1>哪些功能真好用，哪里最影响运营？</h1>
-        <p>建议选择 2-4 个熟悉功能；至少 1 个也可以提交，重点说清楚喜欢和不喜欢的具体点。</p>
+        <p class="eyebrow">功能使用反馈</p>
+        <h1>哪些功能好用，哪些地方需要改？</h1>
+        <p>先选择你熟悉的功能，再逐个写使用感受。熟悉几个就评价几个，重点写具体场景。</p>
       </div>
     </header>
 
     <form id="surveyForm" novalidate>
-      <section class="section" id="overallSection" hidden>
+      <section class="section profile-section">
         <div class="section-header">
-          <h2>填写人信息</h2>
-          <p>只用于分组看反馈，不做个人考核。</p>
+          <div>
+            <span class="section-step">基础信息</span>
+            <h2>填写人信息</h2>
+          </div>
+          <p>用于按角色汇总反馈。</p>
         </div>
         <div class="section-body">
           <div class="field">
@@ -32,44 +35,47 @@
 
       <section class="section">
         <div class="section-header">
-          <h2>功能评价</h2>
-          <p>不用评价所有功能，只挑你能说出使用感受的功能。</p>
+          <div>
+            <span class="section-step">第一步</span>
+            <h2>选择熟悉的功能</h2>
+          </div>
+          <p>不用评价所有功能，只选你实际用过或能说清楚感受的功能。</p>
         </div>
         <div class="section-body">
           <div id="featureGroups" class="stack"></div>
         </div>
       </section>
 
-      <section class="section">
+      <section class="section" id="overallSection" hidden>
         <div class="section-header">
-          <h2>整体反馈</h2>
-          <p>这里会直接影响后续复盘，请尽量写 2-4 句具体场景。</p>
+          <div>
+            <span class="section-step">最后一步</span>
+            <h2>补充说明</h2>
+          </div>
+          <p>可选填写。写具体场景会更方便后续改进。</p>
         </div>
         <div class="section-body">
           <div class="overall-feedback-flow">
             <div class="overall-prompt">
               <div class="overall-copy">
-                <span>01</span>
-                <label for="favoritePoints">最能体现设计靠谱的点</label>
-                <p>写出你愿意保留的功能点，以及它解决了哪个运营判断或协作问题。</p>
+                <label for="favoritePoints">最顺手的地方</label>
+                <p>写出哪个功能或步骤帮你省时间、少漏事，或更容易判断下一步。</p>
               </div>
-              <textarea id="favoritePoints" class="large-feedback" placeholder="例如：私聊分组能按「客户意向 + 是否需人工介入」筛出要跟的会话。这个设计对运营有价值，因为它不是单纯做标签筛选，而是把客户分层、人工介入时机和跟进优先级放在一起考虑了。"></textarea>
+              <textarea id="favoritePoints" class="large-feedback" placeholder="例如：私聊分组能快速筛出需要人工跟进的客户，不用一条条翻会话。"></textarea>
             </div>
             <div class="overall-prompt">
               <div class="overall-copy">
-                <span>02</span>
-                <label for="dislikedPoints">最暴露设计不足的点</label>
-                <p>写出你不放心、难判断或容易理解偏差的地方，重点说清楚产品设计哪里没托住业务。</p>
+                <label for="dislikedPoints">最不顺手的地方</label>
+                <p>写出哪里卡住、难理解、容易漏看，或需要反复确认。</p>
               </div>
-              <textarea id="dislikedPoints" class="large-feedback" placeholder="例如：自动分配只给出分配结果，但不解释为什么分给这个人。运营无法判断规则是否合理，也不知道什么情况下需要人工介入，这会让我觉得规则边界和异常处理设计得不够清楚。"></textarea>
+              <textarea id="dislikedPoints" class="large-feedback" placeholder="例如：自动分配只看到结果，看不到为什么分给这个人，所以遇到异常时不知道要不要人工处理。"></textarea>
             </div>
             <div class="overall-prompt">
               <div class="overall-copy">
-                <span>03</span>
-                <label for="nextImprove">如果只能先改一件事</label>
-                <p>写一个你认为最值得优先改的点，并说明为什么它会影响运营使用或管理判断。</p>
+                <label for="nextImprove">最希望先改的一件事</label>
+                <p>只写一个最影响日常使用的点，并说明影响在哪里。</p>
               </div>
-              <textarea id="nextImprove" class="large-feedback" placeholder="例如：先把动态策略组的阶段切换条件、触发时机、兜底动作放在同一处，并用运营能看懂的话解释。这样运营才能判断策略是否符合投放目标，也能发现规则边界是否遗漏。"></textarea>
+              <textarea id="nextImprove" class="large-feedback" placeholder="例如：先把动态策略组的阶段切换条件放在同一处，并明确异常时怎么处理。"></textarea>
             </div>
           </div>
         </div>
@@ -84,7 +90,7 @@
 
     <section id="successView" class="success-box" hidden>
       <h2>已提交</h2>
-      <p>感谢反馈。后台会按功能、喜欢点、不喜欢点和改进优先级做汇总。</p>
+      <p>感谢反馈，内容已记录。</p>
       <div class="top-actions">
         <button class="button primary" id="againButton" type="button">再填一份</button>
       </div>
