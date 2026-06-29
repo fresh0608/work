@@ -249,8 +249,17 @@ try {
   assert.equal(config.features[0].questions[0].text.includes('完整'), false);
   assert.equal(config.features[0].questions[0].text.includes('讲清楚'), false);
   const allQuestionText = config.features.flatMap((feature) => feature.questions.map((question) => question.text));
-  const unclearQuestionPattern = /你|能不能|会不会|是否|有没有|怎么接|以“会话”为维度|选私聊、群聊、朋友圈/;
+  const unclearQuestionPattern = /你|会不会|是否|怎么接|以“会话”为维度|选私聊、群聊、朋友圈/;
   assert.equal(allQuestionText.some((text) => unclearQuestionPattern.test(text)), false);
+  const commercialQuestions = config.features
+    .find((feature) => feature.name === 'AI 有客商业化能力建设')
+    .questions.map((question) => question.text);
+  assert.deepEqual(commercialQuestions, [
+    '页面里的套餐信息、购买对象和权益内容，能不能让运营快速核对客户买的是哪一类套餐？',
+    '运营在处理购买后开通、履约和线索交付时，系统能不能减少反复查信息、问人确认或手工核对？',
+    '套餐生效、线索发放、交付异常这些状态变化，系统里有没有足够的记录方便追踪和对账？',
+  ]);
+  assert.equal(commercialQuestions.some((text) => text.includes('责任边界') || text.includes('规则表达清楚')), false);
   assert.equal(config.roles, undefined);
   assert.equal(config.frequencies, undefined);
 

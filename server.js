@@ -105,9 +105,9 @@ export const FEATURES = [
     description: '支持分销中介购买 AI 有客套餐，对接经管、合同和履约平台，保障财务合规与线索交付。',
     aiRelated: true,
     questions: [
-      q('commercial_package_fit', '套餐权益、购买对象和使用场景能支撑运营对外解释', 'businessUnderstanding'),
-      q('commercial_chain_complete', '从购买到线索交付的关键节点和责任边界清楚', 'productDesign'),
-      q('commercial_rule_clear', '套餐生效、线索分配、异常处理规则表达清楚', 'architectureDesign'),
+      q('commercial_package_fit', '页面里的套餐信息、购买对象和权益内容，能不能让运营快速核对客户买的是哪一类套餐？', 'businessUnderstanding'),
+      q('commercial_chain_complete', '运营在处理购买后开通、履约和线索交付时，系统能不能减少反复查信息、问人确认或手工核对？', 'productDesign'),
+      q('commercial_rule_clear', '套餐生效、线索发放、交付异常这些状态变化，系统里有没有足够的记录方便追踪和对账？', 'architectureDesign'),
     ],
     problemOptions: ['购买入口不清楚', '套餐规则难理解', '购买后交付对不上', '合同/财务问题不知道找谁', '暂无明显问题'],
   },
