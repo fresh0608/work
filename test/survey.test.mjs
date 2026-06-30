@@ -220,6 +220,8 @@ assert.equal(appJs.includes('想改点的具体说明'), true);
 assert.equal(appJs.includes('focusFirstMissingField'), true);
 assert.equal(appJs.includes('去补未完成项'), true);
 assert.equal(appJs.includes('goToIncompleteFeature'), true);
+assert.equal(appJs.includes('clearStaleValidationErrors'), true);
+assert.equal(appJs.includes('validatePayload(buildPayload())'), true);
 assert.equal(appJs.includes('current-status'), true);
 assert.equal(appJs.includes('evaluation-layout'), true);
 assert.equal(appJs.includes('feature-rail'), true);

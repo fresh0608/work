@@ -609,6 +609,7 @@ function updateSelectedCount() {
   if (detailStep) detailStep.classList.toggle('active', state.evaluationStarted);
   if (overallStep) overallStep.classList.toggle('active', readyForOverall);
   syncEvaluationCompletionUi();
+  clearStaleValidationErrors();
   if (!advice) return;
   if (count === 0) {
     advice.textContent = '先把你能说出感受的功能加入清单；熟悉几个就选几个，可以全部评价。';
@@ -929,6 +930,11 @@ function showErrors(errors) {
 function hideErrors() {
   errorBox.classList.remove('show');
   errorBox.innerHTML = '';
+}
+
+function clearStaleValidationErrors() {
+  if (!errorBox.classList.contains('show')) return;
+  if (validatePayload(buildPayload()).length === 0) hideErrors();
 }
 
 async function fetchJson(url, options) {
